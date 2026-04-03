@@ -89,3 +89,31 @@ export const depositWalletFunds = async (walletAddress, txGroupId) => {
     });
     return handleResponse(res);
 };
+
+export const generateImage = async (walletAddress, prompt, conversationId = null) => {
+    const body = { wallet_address: walletAddress, prompt };
+    if (conversationId) body.conversation_id = conversationId;
+    const res = await fetch(`${BASE_URL}/api/v1/images/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+    return handleResponse(res);
+};
+
+export const mintNFT = async (walletAddress, imageUrl, prompt) => {
+    const res = await fetch(`${BASE_URL}/api/v1/images/mint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet_address: walletAddress, image_url: imageUrl, prompt })
+    });
+    return handleResponse(res);
+};
+export const transferNFT = async (walletAddress, assetId) => {
+    const res = await fetch(`${BASE_URL}/api/v1/images/transfer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet_address: walletAddress, asset_id: assetId })
+    });
+    return handleResponse(res);
+};

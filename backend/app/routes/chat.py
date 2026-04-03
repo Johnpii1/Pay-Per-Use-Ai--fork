@@ -12,7 +12,8 @@ from app.database import (
 )
 from app.services.ai_service import SERVICE_CATALOG, get_ai_response_with_context
 
-COST_PER_TOKEN = 0.00000000025  # $0.00000000025 per token
+# Increased token cost for visible deductions during hackathon demo (eqv ~100 microALGO)
+COST_PER_TOKEN = 0.00002  # $0.00002 per token
 
 router = APIRouter(tags=["Chat"])
 
@@ -112,6 +113,12 @@ async def chat(data: ChatIn):
 
     # Save AI response
     await add_message(conversation_id, "assistant", ai_text, tokens_used, cost_usd)
+
+    # Fire and forget "Proof of Intelligence" on-chain transaction
+    from app.services.algorand_service import send_on_chain_proof
+    import asyncio
+    asyncio.create_task(send_on_chain_proof(data.wallet_address, ai_text))
+
 
     # Fetch updated conversation
     conv = await get_conversation(conversation_id)

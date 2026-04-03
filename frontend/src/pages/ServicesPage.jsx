@@ -4,10 +4,11 @@ import { getServices } from '../api/client';
 
 const ICONS = {
     code_review: '🔍',
-    essay_writer: '✍️',
-    data_analyst: '📊',
+    image_studio: '🎨',
+    business_evaluator: '💡',
     cold_email: '📧',
     humanize_text: '🤖',
+    linkedin_post: '📝',
 };
 
 const ServicesPage = () => {
@@ -19,6 +20,7 @@ const ServicesPage = () => {
 
     useEffect(() => {
         const fetchServices = async () => {
+            if (services.length > 0) return; // Already loaded
             try {
                 const data = await getServices();
                 setServices(data);
@@ -34,7 +36,8 @@ const ServicesPage = () => {
         } else {
             setLoading(false);
         }
-    }, [wallet]);
+    }, [wallet, services.length]);
+
 
     const handleBuy = (service) => {
         navigate(`/workspace/${service.id}`, { state: { service } });

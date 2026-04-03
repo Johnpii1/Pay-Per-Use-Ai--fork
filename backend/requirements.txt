@@ -9,3 +9,5 @@ python-multipart>=0.0.9
 qrcode[pil]>=7.4.2
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
+gunicorn>=21.2.0
+

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const SERVICES_PREVIEW = [
@@ -40,6 +40,12 @@ const FEATURES = [
 ];
 
 const Home = () => {
+    const [isWalletConnected, setIsWalletConnected] = useState(false);
+
+    useEffect(() => {
+        setIsWalletConnected(!!sessionStorage.getItem('wallet_address'));
+    }, []);
+
     return (
         <div className="overflow-hidden">
             {/* ─── HERO ─── */}
@@ -62,7 +68,7 @@ const Home = () => {
                     </p>
                     <div className="flex items-center justify-center gap-4 flex-wrap animate-slide-up" style={{ animationDelay: '0.4s' }}>
                         <Link to="/services" className="btn-primary text-base">
-                            Connect to your wallet →
+                            {isWalletConnected ? 'Go to Dashboard →' : 'Connect to your wallet →'}
                         </Link>
                         <a href="#how-it-works" className="btn-secondary text-base">
                             See How It Works
@@ -88,17 +94,15 @@ const Home = () => {
                             </p>
                         </div>
                         <div className="relative">
-                            {/* Animated border glow */}
-                            <div className="absolute -inset-[2px] bg-gradient-to-r from-brand-purple via-brand-violet to-brand-purple rounded-2xl blur-sm opacity-30 animate-pulse"></div>
-                            <div className="relative glass-card rounded-2xl p-6 overflow-hidden">
-                                {/* Background decorative circles */}
-                                <div className="absolute -top-16 -right-16 w-48 h-48 bg-brand-purple/5 rounded-full blur-2xl"></div>
-                                <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-brand-violet/5 rounded-full blur-2xl"></div>
+                            <div className="relative p-6 overflow-hidden border border-white/5 rounded-2xl">
+                                {/* Background decorative circles - subtler */}
+                                <div className="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl"></div>
+                                <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-white/5 rounded-full blur-2xl"></div>
                                 
                                 {/* Header */}
                                 <div className="relative flex items-center gap-3 mb-6">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-purple to-brand-violet flex items-center justify-center shadow-lg shadow-brand-purple/20">
-                                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                                        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                         </svg>
                                     </div>

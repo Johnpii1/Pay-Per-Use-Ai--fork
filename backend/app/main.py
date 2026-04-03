@@ -4,12 +4,14 @@ Initializes the router configuration, database, and health endpoints.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import os
 
 from app.config import settings
 from app.database import init_db
-from app.routes import services, payment, query, chat, wallet
+from app.routes import services, payment, query, chat, wallet, image
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,8 +20,6 @@ async def lifespan(app: FastAPI):
     
     print("🚀 PayPerAI Backend running")
     print(f"📡 Network: {settings.algorand_network}")
-    print(f"🔗 App ID: {settings.algorand_app_id}")
-    print("📝 API Docs: http://localhost:8000/docs")
     yield
 
 app = FastAPI(
@@ -44,6 +44,11 @@ app.include_router(payment.router, prefix="/api/v1")
 app.include_router(query.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
 app.include_router(wallet.router, prefix="/api/v1")
+app.include_router(image.router, prefix="/api/v1")
+
+# Mount static files to serve NFT images
+os.makedirs("static/nfts", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/health")
 async def health_check():

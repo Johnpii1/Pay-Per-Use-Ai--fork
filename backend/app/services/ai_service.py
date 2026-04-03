@@ -21,33 +21,48 @@ SERVICE_CATALOG = {
             "⚡ Performance, ✅ What's Good, 📝 Suggestions. Be specific and actionable."
         )
     },
-    "essay_writer": {
-        "id": "essay_writer",
-        "name": "Essay Writer",
-        "description": "Award-winning writer crafts compelling essays on any topic.",
-        "price_algo": 1.0,
-        "price_microalgo": 1_000_000,
-        "example_prompt": "Write a 300-word persuasive essay on why open source software matters.",
-        "system_prompt": (
-            "You are an award-winning essayist and editor published in major journals. "
-            "Write compelling, well-structured essays with a strong thesis, supporting "
-            "arguments, and memorable conclusion. Match tone (formal/casual) to the request. "
-            "Always include: an engaging hook, clear structure, and a call to action."
-        )
-    },
-    "data_analyst": {
-        "id": "data_analyst",
-        "name": "Data Analyst",
-        "description": "Senior data scientist analyzes your data and surfaces key insights.",
+    "image_studio": {
+        "id": "image_studio",
+        "name": "AI Image Studio",
+        "description": "Mint your imagination. Generate high-quality unique AI art and turn them into Algorand NFTs.",
         "price_algo": 2.0,
         "price_microalgo": 2_000_000,
-        "example_prompt": "Analyze: monthly sales data showing 20% drop in Q3 vs Q2 for a retail brand.",
+        "example_prompt": "A cyberpunk street market in Neo-Tokyo with pink neon signs, 8k resolution, cinematic lighting.",
         "system_prompt": (
-            "You are a senior data scientist at a top analytics firm. "
-            "When given data or a business problem: identify key trends, surface anomalies, "
-            "suggest statistical tests if appropriate, and recommend visualization types. "
-            "Structure your response: 📊 Key Findings, 🔍 Root Cause Hypotheses, "
-            "📈 Recommended Visualizations, 🎯 Next Steps. Be quantitative and specific."
+            "You are a master digital artist and prompt engineer. "
+            "When a user provides a prompt, refine it for high-end AI image generation. "
+            "Focus on: artistic style, lighting, composition, and technical details like '8k', 'unreal engine 5', or 'photorealistic'. "
+            "Always return a descriptive visual prompt optimized for DALL-E 3."
+        )
+    },
+    "business_evaluator": {
+        "id": "business_evaluator",
+        "name": "Business Idea Evaluator",
+        "description": "Evaluate the viability, target audience, and monetization plan of your startup idea.",
+        "price_algo": 2.0,
+        "price_microalgo": 2_000_000,
+        "example_prompt": "Evaluate this idea: A subscription box for exotic, rare houseplant seeds targeting millennials.",
+        "system_prompt": (
+            "You are a seasoned startup founder and venture capitalist. "
+            "When given a business idea, provide a brutal, honest evaluation. "
+            "Structure your response: 💡 Concept Viability, 🎯 Target Audience, "
+            "💰 Monetization Strategy, ⚠️ Critical Risks, and 🏁 Final Verdict. "
+            "Be specific, realistic, and commercially focused."
+        )
+    },
+    "linkedin_post": {
+        "id": "linkedin_post",
+        "name": "LinkedIn Post Generator",
+        "description": "Convert brief descriptions into highly engaging, professional LinkedIn posts.",
+        "price_algo": 1.0,
+        "price_microalgo": 1_000_000,
+        "example_prompt": "Help me announce my new job as Senior Developer at Stripe.",
+        "system_prompt": (
+            "You are a master LinkedIn ghostwriter. Convert the user's brief into an engaging, "
+            "professional, and slightly energetic LinkedIn post. "
+            "Structure: Use a strong hook, break up paragraphs for readability, "
+            "add a personal reflection or lesson learned, and end with an engaging question. "
+            "Include 3-5 relevant hashtags at the bottom. Do not sound robotic or artificially enthusiastic."
         )
     },
     "cold_email": {
@@ -160,3 +175,19 @@ async def get_ai_response_with_context(service_id: str, messages: list[dict]) ->
         raise RuntimeError(f"OpenAI API error occurred: {e}") from e
     except Exception as e:
         raise RuntimeError(f"Unexpected error interfacing with OpenAI: {e}") from e
+async def generate_ai_image(prompt: str) -> str:
+    """
+    Calls OpenAI DALL-E 3 to generate a high-quality image URL.
+    """
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    try:
+        response = await client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+        return response.data[0].url
+    except Exception as e:
+        raise RuntimeError(f"DALL-E 3 Image Generation failed: {str(e)}")

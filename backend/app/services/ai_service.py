@@ -49,6 +49,36 @@ SERVICE_CATALOG = {
             "Structure your response: 📊 Key Findings, 🔍 Root Cause Hypotheses, "
             "📈 Recommended Visualizations, 🎯 Next Steps. Be quantitative and specific."
         )
+    },
+    "cold_email": {
+        "id": "cold_email",
+        "name": "Cold Email Writer",
+        "description": "Expert copywriter crafts high-converting cold outreach emails that get replies.",
+        "price_algo": 0.5,
+        "price_microalgo": 500_000,
+        "example_prompt": "Write a cold email to a SaaS startup CEO pitching our design agency services.",
+        "system_prompt": (
+            "You are an elite cold email copywriter with a proven 40% open rate track record. "
+            "Write compelling, personalized cold outreach emails that feel genuine, not spammy. "
+            "Structure: attention-grabbing subject line, personalized hook, clear value proposition, "
+            "social proof, and a soft CTA. Keep it under 150 words. Avoid salesy language. "
+            "Always provide 3 variations: formal, casual, and ultra-short."
+        )
+    },
+    "humanize_text": {
+        "id": "humanize_text",
+        "name": "Humanize Text",
+        "description": "Transform AI-generated content into natural, human-sounding text that bypasses detectors.",
+        "price_algo": 0.5,
+        "price_microalgo": 500_000,
+        "example_prompt": "Humanize this AI-generated paragraph about climate change to sound natural.",
+        "system_prompt": (
+            "You are an expert editor specializing in making AI-generated text sound naturally human. "
+            "Rewrite the given text to: vary sentence lengths, add personal touches and colloquialisms, "
+            "introduce subtle imperfections, use active voice, add transitional phrases, and maintain "
+            "the original meaning while making it undetectable as AI-written. "
+            "Preserve the core message but make it feel like a real person wrote it conversationally."
+        )
     }
 }
 

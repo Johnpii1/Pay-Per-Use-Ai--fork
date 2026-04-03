@@ -4,15 +4,25 @@ export default {
     theme: {
         extend: {
             colors: {
-                algo: {
-                    blue: '#00BFFF',
-                    dark: '#0a0a1a',
-                    card: '#111827',
-                    border: '#1f2937',
+                brand: {
+                    purple: '#7c3aed',
+                    violet: '#6366f1',
+                    indigo: '#818cf8',
+                    light: '#a78bfa',
+                },
+                surface: {
+                    DEFAULT: '#000000',
+                    card: 'rgba(255, 255, 255, 0.03)',
+                    elevated: 'rgba(255, 255, 255, 0.06)',
                 }
             },
             fontFamily: {
+                sans: ['Inter', 'system-ui', 'sans-serif'],
+                serif: ['Playfair Display', 'Georgia', 'serif'],
                 mono: ['JetBrains Mono', 'Courier New', 'monospace']
+            },
+            backgroundImage: {
+                'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
             }
         }
     },

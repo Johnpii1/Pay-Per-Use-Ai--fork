@@ -139,11 +139,17 @@ const WorkspacePage = () => {
             const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
                 sender: wallet, receiver: toAddr, amount: amountMicro, suggestedParams: params,
             });
+            const txId = txn.txID().toString();
+            
             const signed = await pw.signTransaction([[{ txn, signers: [wallet] }]]);
-            const { txId } = await algodClient.sendRawTransaction(signed).do();
+            await algodClient.sendRawTransaction(signed).do();
             
             setPayingStatus("Verifying your deposit on the Algorand Testnet...");
             await algosdk.waitForConfirmation(algodClient, txId, 4);
+
+            // Wait 3 seconds for the Algorand Indexer to catch up with the node
+            setPayingStatus("Syncing balance...");
+            await new Promise(r => setTimeout(r, 3000));
 
             await depositWalletFunds(wallet, txId);
             const bal = await fetchBalance(wallet);

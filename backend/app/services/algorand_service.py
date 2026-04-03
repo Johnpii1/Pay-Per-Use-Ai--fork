@@ -65,12 +65,22 @@ async def verify_payment_transaction(tx_group_id: str, service_id: str, buyer_wa
     """
     txns = []
     try:
-        # First try as individual transaction ID (most common from Pera Wallet)
-        txns = _fetch_transaction_by_id(tx_group_id)
-        
-        # If not found, try as group ID
-        if not txns:
-            txns = _fetch_transactions_by_group(tx_group_id)
+        import asyncio
+        # The indexer can sometimes take 3-10 seconds to catch up with ALGOD node.
+        # We retry fetching the transaction up to 6 times (12 seconds)
+        for attempt in range(6):
+            # First try as individual transaction ID (most common from Pera Wallet)
+            txns = _fetch_transaction_by_id(tx_group_id)
+            
+            # If not found, try as group ID
+            if not txns:
+                txns = _fetch_transactions_by_group(tx_group_id)
+                
+            if txns:
+                break
+                
+            await asyncio.sleep(2)
+            
     except requests.Timeout:
         return False, "TIMEOUT_ALGORAND_INDEXER"
     except Exception as e:

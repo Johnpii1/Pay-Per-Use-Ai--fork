@@ -29,7 +29,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+# Configure CORS
+# We split by comma and handle whitespace properly
+raw_origins = settings.cors_origins.split(",")
+origins = [o.strip() for o in raw_origins if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,7 +42,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    """Welcome route for Backend API."""
+    return {
+        "message": "PayPerAI Backend API is live!",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
 app.include_router(services.router, prefix="/api/v1")
+
 app.include_router(payment.router, prefix="/api/v1")
 app.include_router(query.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")

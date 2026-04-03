@@ -61,8 +61,8 @@ const Home = () => {
                         Pay per use in ALGO. No subscriptions. No accounts. Just verify on-chain and get your AI response instantly.
                     </p>
                     <div className="flex items-center justify-center gap-4 flex-wrap animate-slide-up" style={{ animationDelay: '0.4s' }}>
-                        <Link to="/login" className="btn-primary text-base">
-                            Get Started →
+                        <Link to="/services" className="btn-primary text-base">
+                            Connect to your wallet →
                         </Link>
                         <a href="#how-it-works" className="btn-secondary text-base">
                             See How It Works
@@ -87,23 +87,52 @@ const Home = () => {
                                 Every transaction is verified directly on the Algorand Testnet blockchain — fully transparent, fully auditable, and impossibly fast.
                             </p>
                         </div>
-                        <div className="glass-card rounded-2xl p-8 glow-purple">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="text-center p-4">
-                                    <div className="text-3xl font-bold text-white mb-1">5+</div>
-                                    <div className="text-sm text-gray-500">AI Services</div>
+                        <div className="relative group">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-brand-purple to-brand-violet rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                            <div className="relative glass-card rounded-2xl p-8 flex flex-col gap-6">
+                                <div className="flex gap-4 items-center mb-2">
+                                    <div className="w-12 h-12 rounded-full bg-brand-purple/20 flex items-center justify-center border border-brand-purple/30">
+                                        <span className="text-xl">⚡</span>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-white font-bold text-xl">Platform Metrics</h3>
+                                        <p className="text-gray-500 text-xs uppercase tracking-widest">Real-time stats</p>
+                                    </div>
                                 </div>
-                                <div className="text-center p-4">
-                                    <div className="text-3xl font-bold text-white mb-1">0.5</div>
-                                    <div className="text-sm text-gray-500">Min ALGO Cost</div>
-                                </div>
-                                <div className="text-center p-4">
-                                    <div className="text-3xl font-bold text-white mb-1">~3s</div>
-                                    <div className="text-sm text-gray-500">Verification Time</div>
-                                </div>
-                                <div className="text-center p-4">
-                                    <div className="text-3xl font-bold text-white mb-1">100%</div>
-                                    <div className="text-sm text-gray-500">On-Chain Verified</div>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-black/40 rounded-xl p-5 border border-white/5 relative overflow-hidden group/stat">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-brand-purple/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity"></div>
+                                        <div className="text-xs text-gray-400 mb-2 font-medium">Available AI Services</div>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-4xl font-serif font-bold text-white">5</span>
+                                            <span className="text-brand-light text-sm font-bold">+</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-black/40 rounded-xl p-5 border border-white/5 relative overflow-hidden group/stat">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-brand-violet/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity"></div>
+                                        <div className="text-xs text-gray-400 mb-2 font-medium">Minimum Cost</div>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-4xl font-serif font-bold text-white">0.5</span>
+                                            <span className="text-brand-light text-sm font-bold">ALGO</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-black/40 rounded-xl p-5 border border-white/5 relative overflow-hidden group/stat">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-brand-purple/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity"></div>
+                                        <div className="text-xs text-gray-400 mb-2 font-medium">Verification Time</div>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-4xl font-serif font-bold text-white">~3</span>
+                                            <span className="text-brand-light text-sm font-bold">SEC</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-black/40 rounded-xl p-5 border border-white/5 relative overflow-hidden group/stat">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity"></div>
+                                        <div className="text-xs text-gray-400 mb-2 font-medium">Blockchain Verified</div>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-4xl font-serif font-bold text-green-400">100</span>
+                                            <span className="text-green-500 text-sm font-bold">%</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -140,7 +169,7 @@ const Home = () => {
                     </div>
 
                     <div className="text-center mt-12">
-                        <Link to="/login" className="btn-primary">Start Now →</Link>
+                        <Link to="/services" className="btn-primary">Start Now →</Link>
                     </div>
                 </div>
             </section>
@@ -170,7 +199,7 @@ const Home = () => {
                     </div>
 
                     <div className="text-center mt-10">
-                        <Link to="/login" className="btn-primary">Buy Access →</Link>
+                        <Link to="/services" className="btn-primary">Buy Access →</Link>
                     </div>
                 </div>
             </section>

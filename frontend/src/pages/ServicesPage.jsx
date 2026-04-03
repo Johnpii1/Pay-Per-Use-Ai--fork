@@ -18,11 +18,6 @@ const ServicesPage = () => {
     const wallet = sessionStorage.getItem('wallet_address');
 
     useEffect(() => {
-        if (!wallet) {
-            navigate('/login');
-            return;
-        }
-
         const fetchServices = async () => {
             try {
                 const data = await getServices();
@@ -33,12 +28,31 @@ const ServicesPage = () => {
                 setLoading(false);
             }
         };
-        fetchServices();
-    }, [wallet, navigate]);
+
+        if (wallet) {
+            fetchServices();
+        } else {
+            setLoading(false);
+        }
+    }, [wallet]);
 
     const handleBuy = (service) => {
         navigate(`/pay/${service.id}`, { state: { service } });
     };
+
+    if (!wallet) {
+        return (
+            <div className="min-h-screen flex items-center justify-center pt-24 px-6 text-center">
+                <div className="glass-card rounded-2xl p-12 max-w-md w-full glow-purple">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-purple to-brand-violet flex items-center justify-center mx-auto mb-6">
+                        <span className="text-white font-bold text-2xl">P</span>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-3">Wallet Required</h2>
+                    <p className="text-sm text-gray-400 mb-6">Connect your Algorand wallet from the navigation menu above to view and access premium AI services.</p>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (

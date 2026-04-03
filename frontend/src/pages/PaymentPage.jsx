@@ -20,7 +20,7 @@ const PaymentPage = () => {
 
     useEffect(() => {
         if (!service || !wallet) {
-            navigate('/login');
+            navigate('/');
             return;
         }
         getPaymentInfo(service.id)

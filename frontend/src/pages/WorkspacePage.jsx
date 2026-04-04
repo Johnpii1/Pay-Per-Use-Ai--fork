@@ -1,15 +1,13 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { sendChat, getPaymentInfo, getConversationHistory, getServices, getWalletPrepayBalance, depositWalletFunds, getConversationMessages, generateImage, mintNFT, transferNFT } from '../api/client';
-import { ACTIVE_NETWORK } from "../config/networkConfig";
 
 const ICONS = {
     code_review: '🔍', image_studio: '🎨', business_evaluator: '💡',
     cold_email: '📧', humanize_text: '🤖', linkedin_post: '📝',
 };
 
-const ALGOD_API = ACTIVE_NETWORK.algodServer;
-
+const ALGOD_API = 'https://testnet-api.algonode.cloud';
 
 const WorkspacePage = () => {
     const { serviceId } = useParams();
@@ -134,10 +132,7 @@ const WorkspacePage = () => {
                 toAddr = freshInfo?.contract_address;
             }
 
-            const pw = new PeraWalletConnect({
-                chainId: ACTIVE_NETWORK.chainId
-            });
-
+            const pw = new PeraWalletConnect();
             let accounts = [];
             try { accounts = await pw.reconnectSession(); } catch (_) { }
             if (!accounts || !accounts.length) accounts = await pw.connect();
@@ -184,10 +179,7 @@ const WorkspacePage = () => {
             const { PeraWalletConnect } = await import('@perawallet/connect');
             const algosdk = (await import('algosdk')).default;
 
-            const pw = new PeraWalletConnect({
-                chainId: ACTIVE_NETWORK.chainId
-            });
-
+            const pw = new PeraWalletConnect();
             try { await pw.reconnectSession(); } catch (_) { }
 
             const algodClient = new algosdk.Algodv2('', ALGOD_API, '');

@@ -42,6 +42,10 @@ class PayPerAI(ARC4Contract):
         # Creator earnings (creator wallet -> accumulated microALGO)
         self.creator_earnings = BoxMap(Account, UInt64, key_prefix=b"e_")
 
+        # Session limits and expiries
+        self.session_balances = BoxMap(Account, UInt64, key_prefix=b"sb_")
+        self.session_expiries = BoxMap(Account, UInt64, key_prefix=b"se_")
+
         # Proof-of-intelligence log counter
         self.proof_count = algopy.GlobalState(UInt64)
 
@@ -98,28 +102,58 @@ class PayPerAI(ARC4Contract):
         return UInt64(0)
 
     # ────────────────────────────────────────────────────────
-    # §2 — PAY-PER-USE SERVICE
+    # §2 — PAY-PER-USE SERVICE (SESSION BASED)
     # ────────────────────────────────────────────────────────
 
     @algopy.arc4.abimethod
-    def request_service(self, service_id: String) -> algopy.arc4.Bool:
+    def start_session(self, max_spend: UInt64, expiry_time: UInt64) -> algopy.arc4.Bool:
         """
-        User requests an AI service. Contract validates balance,
-        deducts cost, and splits revenue between creator and platform.
-        Emits SERVICE_USED event for backend oracle to pick up.
+        User authorizes a session with a max spend limit and expiry.
+        Requires sufficient existing escrow balance.
         """
         caller = Txn.sender
+        assert caller in self.balances, "NO_BALANCE"
+        assert self.balances[caller] >= max_spend, "INSUFFICIENT_BALANCE"
+        assert expiry_time > Global.latest_timestamp, "INVALID_EXPIRY"
+        
+        self.session_balances[caller] = max_spend
+        self.session_expiries[caller] = expiry_time
+        
+        log(
+            b"SESSION_STARTED|" 
+            + caller.bytes 
+            + b"|" 
+            + op.itob(max_spend) 
+            + b"|" 
+            + op.itob(expiry_time)
+        )
+        return algopy.arc4.Bool(True)
+
+    @algopy.arc4.abimethod
+    def request_service(self, user: Account, service_id: String) -> algopy.arc4.Bool:
+        """
+        Backend calls this to deduct for an AI service using the user's active session.
+        Contract validates balance and session expiry, deducts cost, and splits revenue.
+        Emits event for backend to proceed with execution.
+        """
+        # Only backend (contract owner) can deduct on behalf of user
+        assert Txn.sender == self.owner.value, "UNAUTHORIZED"
+
+        # Check session exists and is active
+        assert user in self.session_balances, "NO_SESSION"
+        assert Global.latest_timestamp <= self.session_expiries[user], "SESSION_EXPIRED"
 
         # Validate service exists
         assert service_id in self.service_prices, "INVALID_SERVICE"
         price = self.service_prices[service_id]
 
-        # Validate user has sufficient escrow balance
-        assert caller in self.balances, "NO_BALANCE"
-        assert self.balances[caller] >= price, "INSUFFICIENT_BALANCE"
+        # Validate session balance and overall escrow balance
+        assert self.session_balances[user] >= price, "SESSION_LIMIT_EXCEEDED"
+        assert self.balances[user] >= price, "INSUFFICIENT_BALANCE"
 
-        # Deduct from user balance
-        self.balances[caller] = self.balances[caller] - price
+        # Deduct from session and overall balance
+        self.session_balances[user] = self.session_balances[user] - price
+        self.balances[user] = self.balances[user] - price
 
         # Revenue split
         assert service_id in self.service_creators, "NO_CREATOR"
@@ -139,14 +173,16 @@ class PayPerAI(ARC4Contract):
         else:
             self.creator_earnings[self.owner.value] = platform_cut
 
-        # Emit structured event for the backend event listener / oracle
+        # Emit structured event
         log(
             b"SERVICE_USED|"
-            + caller.bytes
+            + user.bytes
             + b"|"
             + service_id.bytes
             + b"|"
             + op.itob(price)
+            + b"|"
+            + op.itob(Global.latest_timestamp)
         )
 
         return algopy.arc4.Bool(True)

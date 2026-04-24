@@ -95,14 +95,14 @@ async def chat(data: ChatIn):
     # Save user message
     await add_message(conversation_id, "user", data.prompt.strip())
 
-    # ── On-chain balance check (smart contract escrow) ──
-    current_balance = await get_wallet_balance(data.wallet_address)
+    # ── On-chain Session Deduction via Smart Contract ──
+    from app.services.algorand_service import execute_service_request
+    success = await execute_service_request(data.wallet_address, data.service_id)
     
-    # Require at least 50,000 microalgo (0.05 ALGO) to start a chat
-    if current_balance < 50000:
+    if not success:
         raise HTTPException(
             status_code=402,
-            detail="Insufficient prepay balance. Please deposit ALGO.",
+            detail="Session authorization failed. Ensure you have started a session and have sufficient balance.",
             headers={"X-Insufficient-Balance": "true"}
         )
 

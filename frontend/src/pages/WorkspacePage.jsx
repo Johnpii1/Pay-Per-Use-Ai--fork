@@ -165,6 +165,8 @@ const WorkspacePage = () => {
 
             // Build the group using ATC
             const atc = new algosdk.AtomicTransactionComposer();
+            
+            // 1. Deposit
             atc.addMethodCall({
                 appID: parseInt(paymentInfo.app_id),
                 method: method,
@@ -176,6 +178,40 @@ const WorkspacePage = () => {
                     appIndex: parseInt(paymentInfo.app_id),
                     name: new Uint8Array([...new TextEncoder().encode("b_"), ...algosdk.decodeAddress(wallet).publicKey])
                 }]
+            });
+            
+            // 2. Start Session (Max spend = amount deposited + existing balance, Expiry = +24 hours)
+            const sessionMethod = new algosdk.ABIMethod({
+                name: "start_session",
+                args: [{ type: "uint64", name: "max_spend" }, { type: "uint64", name: "expiry_time" }],
+                returns: { type: "bool" }
+            });
+            
+            const expiryTime = Math.floor(Date.now() / 1000) + (24 * 60 * 60); // 24 hours
+            // Use an arbitrarily large max spend to allow using all balance during session
+            const maxSpend = 1000000000000; 
+            
+            atc.addMethodCall({
+                appID: parseInt(paymentInfo.app_id),
+                method: sessionMethod,
+                methodArgs: [maxSpend, expiryTime],
+                sender: wallet,
+                suggestedParams: params,
+                signer: dummySigner,
+                boxes: [
+                    {
+                        appIndex: parseInt(paymentInfo.app_id),
+                        name: new Uint8Array([...new TextEncoder().encode("sb_"), ...algosdk.decodeAddress(wallet).publicKey])
+                    },
+                    {
+                        appIndex: parseInt(paymentInfo.app_id),
+                        name: new Uint8Array([...new TextEncoder().encode("se_"), ...algosdk.decodeAddress(wallet).publicKey])
+                    },
+                    {
+                        appIndex: parseInt(paymentInfo.app_id),
+                        name: new Uint8Array([...new TextEncoder().encode("b_"), ...algosdk.decodeAddress(wallet).publicKey])
+                    }
+                ]
             });
 
             // Extract grouped transactions
@@ -394,9 +430,9 @@ const WorkspacePage = () => {
                                 <button
                                     onClick={handleDeposit}
                                     disabled={isDepositing}
-                                    className="text-[10px] bg-green-500/15 text-green-400 border border-green-500/20 px-2.5 py-1 rounded-md font-bold hover:bg-green-500/25 transition-colors disabled:opacity-40"
+                                    className="text-[10px] bg-green-500/15 text-green-400 border border-green-500/20 px-2.5 py-1 rounded-md font-bold hover:bg-green-500/25 transition-colors disabled:opacity-40 whitespace-nowrap"
                                 >
-                                    {isDepositing ? '…' : '+ Add'}
+                                    {isDepositing ? '…' : 'Start Session'}
                                 </button>
                             </div>
                         </div>

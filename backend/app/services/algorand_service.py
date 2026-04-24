@@ -392,3 +392,70 @@ async def transfer_asset(receiver_wallet: str, asset_id: int):
 
     await asyncio.to_thread(transaction.wait_for_confirmation, algod_client, txid, 4)
     return txid
+
+
+# ────────────────────────────────────────────────────────
+# BACKEND SESSION EXECUTION
+# ────────────────────────────────────────────────────────
+
+async def execute_service_request(user_wallet: str, service_id: str) -> bool:
+    """
+    Submits a transaction to the smart contract on behalf of the user
+    to deduct from their session.
+    """
+    from algosdk import account, transaction, mnemonic
+    from algosdk.v2client import algod
+    import asyncio
+    
+    if not settings.platform_wallet_mnemonic:
+        raise ValueError("PLATFORM_WALLET_MNEMONIC not set")
+        
+    algod_client = algod.AlgodClient(settings.algod_token, settings.algod_url)
+    private_key = mnemonic.to_private_key(settings.platform_wallet_mnemonic)
+    sender = account.address_from_private_key(private_key)
+    
+    params = algod_client.suggested_params()
+    params.fee = 2000 # Cover inner txs
+    params.flat_fee = True
+    
+    app_id = settings.app_id_int
+    
+    from algosdk.encoding import decode_address
+    user_addr = decode_address(user_wallet)
+    
+    method = transaction.ABIMethod.from_signature("request_service(account,string)bool")
+    
+    try:
+        from app.services.ai_service import SERVICE_CATALOG
+        creator_wallet = SERVICE_CATALOG.get(service_id, {}).get("creator_address", settings.platform_wallet_address)
+        creator_addr = decode_address(creator_wallet)
+        sender_addr = decode_address(sender)
+        
+        atc = transaction.AtomicTransactionComposer()
+        signer = transaction.AccountTransactionSigner(private_key)
+        
+        boxes = [
+            (app_id, b"sb_" + user_addr),
+            (app_id, b"se_" + user_addr),
+            (app_id, b"b_" + user_addr),
+            (app_id, b"p_" + service_id.encode('utf-8')),
+            (app_id, b"c_" + service_id.encode('utf-8')),
+            (app_id, b"e_" + creator_addr),
+            (app_id, b"e_" + sender_addr),
+        ]
+        
+        atc.add_method_call(
+            app_id=app_id,
+            method=method,
+            sender=sender,
+            sp=params,
+            signer=signer,
+            method_args=[user_wallet, service_id],
+            boxes=boxes
+        )
+        
+        result = await asyncio.to_thread(atc.execute, algod_client, 4)
+        return True
+    except Exception as e:
+        print(f"Contract request_service failed: {e}")
+        return False

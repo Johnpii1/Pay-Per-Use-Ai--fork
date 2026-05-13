@@ -423,7 +423,9 @@ async def execute_service_request(user_wallet: str, service_id: str) -> bool:
     from algosdk.encoding import decode_address
     user_addr = decode_address(user_wallet)
     
-    method = transaction.ABIMethod.from_signature("request_service(account,string)bool")
+    from algosdk.abi import Method
+    from algosdk.atomic_transaction_composer import AtomicTransactionComposer, AccountTransactionSigner
+    method = Method.from_signature("request_service_v2(address,string)bool")
     
     try:
         from app.services.ai_service import SERVICE_CATALOG
@@ -431,8 +433,8 @@ async def execute_service_request(user_wallet: str, service_id: str) -> bool:
         creator_addr = decode_address(creator_wallet)
         sender_addr = decode_address(sender)
         
-        atc = transaction.AtomicTransactionComposer()
-        signer = transaction.AccountTransactionSigner(private_key)
+        atc = AtomicTransactionComposer()
+        signer = AccountTransactionSigner(private_key)
         
         boxes = [
             (app_id, b"sb_" + user_addr),

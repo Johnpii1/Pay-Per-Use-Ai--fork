@@ -53,6 +53,15 @@ async def close_pool():
 # ────────────────────────────────────────────────────────
 
 SCHEMA_SQL = """
+-- Users
+CREATE TABLE IF NOT EXISTS users (
+    wallet_address TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    dob TEXT NOT NULL,
+    email TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Sessions (legacy compatibility)
 CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
@@ -165,6 +174,9 @@ CREATE TABLE IF NOT EXISTS query_log (
 """
 
 INDEXES_SQL = """
+-- User indexes
+CREATE INDEX IF NOT EXISTS idx_user_wallet ON users(wallet_address);
+
 -- Conversation indexes
 CREATE INDEX IF NOT EXISTS idx_conv_wallet ON conversations(wallet_address);
 CREATE INDEX IF NOT EXISTS idx_conv_wallet_service ON conversations(wallet_address, service_id);
@@ -286,6 +298,51 @@ async def get_conversation(conversation_id: str) -> Optional[dict]:
         )
         return dict(row) if row else None
 
+
+async def delete_conversation(conversation_id: str):
+    """Delete a conversation and all its messages."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("DELETE FROM messages WHERE conversation_id = $1", conversation_id)
+            await conn.execute("DELETE FROM conversations WHERE conversation_id = $1", conversation_id)
+
+async def get_user_analytics(wallet_address: str):
+    """Calculate usage analytics for a user."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        # Sum of microALGO spent in the last 30 days
+        spent_last_30 = await conn.fetchval(
+            """SELECT SUM(amount_microalgo) FROM blockchain_tx_log 
+               WHERE wallet_address = $1 AND tx_type = 'ai_usage' 
+               AND created_at > NOW() - INTERVAL '30 days'""",
+            wallet_address
+        ) or 0
+        
+        # Total tokens used in the last 30 days
+        tokens_last_30 = await conn.fetchval(
+            """SELECT SUM(total_tokens) FROM conversations 
+               WHERE wallet_address = $1 
+               AND created_at > NOW() - INTERVAL '30 days'""",
+            wallet_address
+        ) or 0
+        
+        # Average sessions per day (or total sessions)
+        total_sessions = await conn.fetchval(
+            "SELECT COUNT(*) FROM conversations WHERE wallet_address = $1",
+            wallet_address
+        ) or 0
+        
+        # Average spent per session
+        avg_per_session = spent_last_30 / total_sessions if total_sessions > 0 else 0
+        
+        return {
+            "spent_microalgo_30d": spent_last_30,
+            "spent_algo_30d": spent_last_30 / 1_000_000,
+            "tokens_used_30d": tokens_last_30,
+            "total_sessions": total_sessions,
+            "avg_algo_per_session": avg_per_session / 1_000_000
+        }
 
 async def add_message(conversation_id: str, role: str, content: str,
                       tokens_used: int = 0, cost_usd: float = 0.0):
@@ -540,6 +597,27 @@ async def seed_default_services():
             example_prompt=svc.get("example_prompt", ""),
             system_prompt=svc.get("system_prompt", ""),
         )
+
+
+# ────────────────────────────────────────────────────────
+# USERS
+# ────────────────────────────────────────────────────────
+
+async def create_user(wallet_address: str, name: str, dob: str, email: str):
+    now = datetime.now(timezone.utc)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """INSERT INTO users(wallet_address, name, dob, email, created_at)
+               VALUES ($1, $2, $3, $4, $5)""",
+            wallet_address, name, dob, email, now
+        )
+
+async def get_user(wallet_address: str) -> Optional[dict]:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM users WHERE wallet_address = $1", wallet_address)
+        return dict(row) if row else None
 
 
 # ────────────────────────────────────────────────────────

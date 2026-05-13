@@ -67,7 +67,7 @@ const Home = () => {
                         Pay per use in ALGO. No subscriptions. No accounts. Just verify on-chain and get your AI response instantly.
                     </p>
                     <div className="flex items-center justify-center gap-4 flex-wrap animate-slide-up" style={{ animationDelay: '0.4s' }}>
-                        <Link to="/services" className="btn-primary text-base">
+                        <Link to="/dashboard" className="btn-primary text-base">
                             {isWalletConnected ? 'Go to Dashboard →' : 'Connect to your wallet →'}
                         </Link>
                         <a href="#how-it-works" className="btn-secondary text-base">
@@ -210,7 +210,7 @@ const Home = () => {
                     </div>
 
                     <div className="text-center mt-12">
-                        <Link to="/services" className="btn-primary">Start Now →</Link>
+                        <Link to="/dashboard" className="btn-primary">Start Now →</Link>
                     </div>
                 </div>
             </section>
@@ -240,7 +240,7 @@ const Home = () => {
                     </div>
 
                     <div className="text-center mt-10">
-                        <Link to="/services" className="btn-primary">Buy Access →</Link>
+                        <Link to="/dashboard" className="btn-primary">Buy Access →</Link>
                     </div>
                 </div>
             </section>

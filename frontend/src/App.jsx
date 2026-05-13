@@ -3,10 +3,9 @@ import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
-import ServicesPage from './pages/ServicesPage';
-import PaymentPage from './pages/PaymentPage';
-import ResultPage from './pages/ResultPage';
-import WorkspacePage from './pages/WorkspacePage';
+import OnboardingPage from './pages/OnboardingPage';
+import DashboardPage from './pages/DashboardPage';
+import SharedChatPage from './pages/SharedChatPage';
 
 function App() {
   return (
@@ -15,10 +14,9 @@ function App() {
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/services" element={<ServicesPage />} />
-          <Route path="/workspace/:serviceId" element={<WorkspacePage />} />
-          <Route path="/pay/:serviceId" element={<PaymentPage />} />
-          <Route path="/result" element={<ResultPage />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/shared/:id" element={<SharedChatPage />} />
         </Routes>
       </main>
       <Footer />

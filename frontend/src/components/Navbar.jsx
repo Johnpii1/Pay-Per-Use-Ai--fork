@@ -1,65 +1,107 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { PeraWalletConnect } from "@perawallet/connect";
-
-const peraWallet = new PeraWalletConnect();
+import { peraWallet } from '../config/peraWallet';
+import { getUserProfile, getNonce, verifySiwa, authLogout } from '../api/client';
 
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [accountAddress, setAccountAddress] = useState(sessionStorage.getItem('wallet_address'));
-    const location = useLocation();
-    const navigate = useNavigate();
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [connectStatus, setConnectStatus] = useState('');
+    const location  = useLocation();
+    const navigate  = useNavigate();
 
     useEffect(() => {
         peraWallet.reconnectSession().then((accounts) => {
-            peraWallet.connector?.on("disconnect", handleDisconnectWalletClick);
+            peraWallet.connector?.on('disconnect', handleDisconnectWalletClick);
             if (peraWallet.isConnected && accounts.length) {
                 const addr = accounts[0];
-                setAccountAddress(addr);
-                sessionStorage.setItem('wallet_address', addr);
+                if (sessionStorage.getItem('wallet_address') === addr) setAccountAddress(addr);
             }
-        }).catch(e => console.log(e));
+        }).catch(() => {});
     }, []);
 
-    const handleConnectWalletClick = (e) => {
+    const handleConnectWalletClick = async (e) => {
         if (e) e.preventDefault();
-        peraWallet.connect()
-            .then((newAccounts) => {
-                peraWallet.connector?.on("disconnect", handleDisconnectWalletClick);
-                const addr = newAccounts[0];
-                setAccountAddress(addr);
-                sessionStorage.setItem('wallet_address', addr);
-                navigate('/services');
-            })
-            .catch((error) => {
-                if (error?.data?.type !== "CONNECT_MODAL_CLOSED") {
-                    console.log(error);
-                }
-            });
+        if (isConnecting) return;
+        setIsConnecting(true);
+        setConnectStatus('Connecting wallet...');
+
+        try {
+            // Step 1: Connect via Pera Wallet (QR scan)
+            let accounts = [];
+            try { accounts = await peraWallet.reconnectSession(); } catch (_) {}
+            if (!accounts || accounts.length === 0) {
+                accounts = await peraWallet.connect();
+            }
+            if (!accounts || accounts.length === 0) throw new Error('Connection cancelled.');
+            peraWallet.connector?.on('disconnect', handleDisconnectWalletClick);
+            const addr = accounts[0];
+
+            // Step 2: Get nonce from backend
+            setConnectStatus('Getting verification challenge...');
+            const { nonce } = await getNonce(addr);
+            const message = `PayPerAI Sign-In\nWallet: ${addr}\nNonce: ${nonce}`;
+
+            // Step 3: Ask Pera Wallet to sign the message (signData — no ALGO cost)
+            setConnectStatus('Sign the message in Pera Wallet...');
+            const msgBytes  = new TextEncoder().encode(message);
+            const signedData = await peraWallet.signData(
+                [{ data: msgBytes, message }],
+                addr
+            );
+
+            // Step 4: Base64-encode signature and verify with backend
+            setConnectStatus('Verifying...');
+            const sigBytes = signedData[0] instanceof Uint8Array
+                ? signedData[0]
+                : new Uint8Array(Object.values(signedData[0]));
+            const sigB64 = btoa(Array.from(sigBytes, b => String.fromCharCode(b)).join(''));
+            await verifySiwa(addr, message, sigB64);
+
+            // Step 5: Save and navigate
+            sessionStorage.setItem('wallet_address', addr);
+            setAccountAddress(addr);
+            try {
+                await getUserProfile(addr);
+                navigate('/dashboard');
+            } catch (_) {
+                navigate('/onboarding');
+            }
+
+        } catch (err) {
+            if (err?.data?.type !== 'CONNECT_MODAL_CLOSED') {
+                console.error('SIWA connect error:', err.message || err);
+                alert('Sign-in failed: ' + (err.message || 'Unknown error'));
+            }
+        } finally {
+            setIsConnecting(false);
+            setConnectStatus('');
+        }
     };
 
-    const handleDisconnectWalletClick = (e) => {
+    const handleDisconnectWalletClick = async (e) => {
         if (e) e.preventDefault();
-        peraWallet.disconnect();
+        try { await peraWallet.disconnect(); }  catch (_) {}
+        try { await authLogout(); }             catch (_) {}
         setAccountAddress(null);
-        sessionStorage.removeItem('wallet_address');
+        sessionStorage.clear();
         navigate('/');
     };
 
     const navLinks = [
-        { to: '/', label: 'Home', isRoute: true },
-        { to: '/#about', label: 'About' },
-        { to: '/#how-it-works', label: 'How It Works' },
-        { to: '/#services-preview', label: 'Services' },
-        { to: '/#why-us', label: 'Why Us' },
+        { to: '/',                 label: 'Home',        isRoute: true },
+        { to: '/#about',           label: 'About' },
+        { to: '/#how-it-works',    label: 'How It Works' },
+        { to: '/#services-preview',label: 'Services' },
+        { to: '/#why-us',          label: 'Why Us' },
     ];
 
     const scrollToSection = (e, hash) => {
         if (location.pathname === '/') {
             e.preventDefault();
-            if (hash === '/') {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
+            if (hash === '/') window.scrollTo({ top: 0, behavior: 'smooth' });
+            else {
                 const el = document.querySelector(hash);
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
             }
@@ -67,9 +109,44 @@ const Navbar = () => {
         }
     };
 
-    if (location.pathname.startsWith('/workspace')) {
+    if (location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/onboarding')) {
         return null;
     }
+
+    const ConnectBtn = ({ mobile = false }) =>
+        accountAddress ? (
+            <>
+                <Link
+                    to="/dashboard"
+                    className={`btn-primary text-sm !px-5 !py-2.5${mobile ? ' block text-center mt-4' : ''}`}
+                    onClick={mobile ? () => setIsOpen(false) : undefined}
+                >
+                    Dashboard
+                </Link>
+                <button
+                    onClick={(ev) => { handleDisconnectWalletClick(ev); if (mobile) setIsOpen(false); }}
+                    className={`btn-secondary text-sm !px-4 !py-2.5${mobile ? ' w-full text-center mt-2' : ''}`}
+                >
+                    Disconnect
+                </button>
+            </>
+        ) : (
+            <button
+                onClick={(ev) => { handleConnectWalletClick(ev); if (mobile) setIsOpen(false); }}
+                disabled={isConnecting}
+                className={`btn-primary text-sm !px-6 !py-2.5 disabled:opacity-60 flex items-center justify-center gap-2${mobile ? ' w-full mt-4' : ' min-w-[160px]'}`}
+            >
+                {isConnecting ? (
+                    <>
+                        <svg className="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                        <span className="truncate text-xs">{connectStatus || 'Connecting...'}</span>
+                    </>
+                ) : 'Connect Wallet'}
+            </button>
+        );
 
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-4">
@@ -80,96 +157,57 @@ const Navbar = () => {
                     </span>
                 </Link>
 
-                {/* Desktop Nav */}
+                {/* Desktop links */}
                 <div className="hidden md:flex items-center gap-6">
-                    {navLinks.map(link => (
+                    {navLinks.map(link =>
                         link.isRoute ? (
-                            <Link
-                                key={link.label}
-                                to={link.to}
+                            <Link key={link.label} to={link.to}
                                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="text-sm text-gray-400 hover:text-white transition-colors"
-                            >
+                                className="text-sm text-gray-400 hover:text-white transition-colors">
                                 {link.label}
                             </Link>
                         ) : (
-                            <a
-                                key={link.label}
-                                href={link.to}
+                            <a key={link.label} href={link.to}
                                 onClick={(e) => scrollToSection(e, link.to.replace('/', ''))}
-                                className="text-sm text-gray-400 hover:text-white transition-colors"
-                            >
+                                className="text-sm text-gray-400 hover:text-white transition-colors">
                                 {link.label}
                             </a>
                         )
-                    ))}
+                    )}
                 </div>
 
                 <div className="hidden md:flex items-center gap-3">
-                    {accountAddress ? (
-                        <>
-                            <Link to="/services" className="btn-primary text-sm !px-5 !py-2.5">
-                                Dashboard
-                            </Link>
-                            <button onClick={handleDisconnectWalletClick} className="btn-secondary text-sm !px-4 !py-2.5">
-                                Disconnect
-                            </button>
-                        </>
-                    ) : (
-                        <button onClick={handleConnectWalletClick} className="btn-primary text-sm !px-6 !py-2.5">
-                            Connect to your wallet
-                        </button>
-                    )}
+                    <ConnectBtn />
                 </div>
 
                 {/* Mobile toggle */}
-                <button onClick={() => setIsOpen(!isOpen)} className="md:hidden text-white p-2">
-                    {isOpen ? (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    ) : (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                    )}
+                <button onClick={() => setIsOpen(o => !o)} className="md:hidden text-white p-2">
+                    {isOpen
+                        ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    }
                 </button>
             </div>
 
-            {/* Mobile Menu */}
+            {/* Mobile menu */}
             {isOpen && (
                 <div className="md:hidden mt-2 mx-auto max-w-6xl floating-nav rounded-2xl p-6 space-y-4 animate-fade-in">
-                    {navLinks.map(link => (
+                    {navLinks.map(link =>
                         link.isRoute ? (
-                            <Link
-                                key={link.label}
-                                to={link.to}
+                            <Link key={link.label} to={link.to}
                                 className="block text-gray-400 hover:text-white transition-colors"
-                                onClick={() => { setIsOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                            >
+                                onClick={() => { setIsOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                                 {link.label}
                             </Link>
                         ) : (
-                            <a
-                                key={link.label}
-                                href={link.to}
+                            <a key={link.label} href={link.to}
                                 onClick={(e) => scrollToSection(e, link.to.replace('/', ''))}
-                                className="block text-gray-400 hover:text-white transition-colors"
-                            >
+                                className="block text-gray-400 hover:text-white transition-colors">
                                 {link.label}
                             </a>
                         )
-                    ))}
-                    {accountAddress ? (
-                        <>
-                            <Link to="/services" className="btn-primary block text-center text-sm !py-2.5 mt-4" onClick={() => setIsOpen(false)}>
-                                Dashboard
-                            </Link>
-                            <button onClick={(e) => { handleDisconnectWalletClick(e); setIsOpen(false); }} className="btn-secondary block w-full text-center text-sm !py-2.5 mt-2">
-                                Disconnect
-                            </button>
-                        </>
-                    ) : (
-                        <button onClick={(e) => { handleConnectWalletClick(e); setIsOpen(false); }} className="btn-primary w-full text-center text-sm !py-2.5 mt-4">
-                            Connect to your wallet
-                        </button>
                     )}
+                    <ConnectBtn mobile />
                 </div>
             )}
         </nav>

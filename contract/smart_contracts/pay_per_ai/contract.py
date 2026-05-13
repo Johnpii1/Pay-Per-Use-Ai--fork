@@ -130,7 +130,7 @@ class PayPerAI(ARC4Contract):
         return algopy.arc4.Bool(True)
 
     @algopy.arc4.abimethod
-    def request_service(self, user: Account, service_id: String) -> algopy.arc4.Bool:
+    def request_service_v2(self, user: Account, service_id: String) -> algopy.arc4.Bool:
         """
         Backend calls this to deduct for an AI service using the user's active session.
         Contract validates balance and session expiry, deducts cost, and splits revenue.

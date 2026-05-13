@@ -1,23 +1,24 @@
 """
 Multi-turn chat endpoint with context preservation.
 Balance checks and deductions are now on-chain via smart contract.
-Backend is a stateless executor — it only runs AI after on-chain authorization.
+Protected by SIWA JWT authentication and rate limiting.
 """
 import uuid
 import hashlib
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import Optional, List
 
 from app.database import (
     create_conversation, get_conversation, mark_conversation_paid,
     add_message, get_conversation_messages, get_wallet_conversations,
-    get_wallet_balance, log_transaction, log_ai_query
+    get_wallet_balance, log_transaction, log_ai_query, delete_conversation
 )
 from app.services.ai_service import SERVICE_CATALOG, get_ai_response_with_context
+from app.core.security import get_current_user
+from app.core.limiter import limiter
 
-# Increased token cost for visible deductions during hackathon demo (eqv ~100 microALGO)
-COST_PER_TOKEN = 0.00002  # $0.00002 per token
+COST_PER_TOKEN = 0.00002
 
 router = APIRouter(tags=["Chat"])
 
@@ -58,7 +59,8 @@ class HistoryOut(BaseModel):
 
 
 @router.post("/chat", response_model=ChatOut, status_code=200)
-async def chat(data: ChatIn):
+@limiter.limit("10/minute")
+async def chat(request: Request, data: ChatIn, wallet_address: str = Depends(get_current_user)):
     """
     Multi-turn conversational AI endpoint.
     Creates or continues a conversation with full context preservation.
@@ -220,6 +222,39 @@ async def get_conv_messages(wallet_address: str, conversation_id: str):
                 cost_usd=m["cost_usd"],
                 created_at=str(m["created_at"])
             )
+            for m in messages
+        ]
+    }
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conv(conversation_id: str):
+    await delete_conversation(conversation_id)
+    return {"message": "Conversation deleted"}
+
+@router.get("/users/{wallet_address}/analytics")
+async def get_user_analytics_route(wallet_address: str):
+    from app.database import get_user_analytics
+    stats = await get_user_analytics(wallet_address)
+    return stats
+
+@router.get("/shared/{conversation_id}")
+async def get_shared_conv(conversation_id: str):
+    """Fetch a conversation for public sharing."""
+    from app.database import get_conversation, get_conversation_messages
+    conv = await get_conversation(conversation_id)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    messages = await get_conversation_messages(conversation_id)
+    return {
+        "conversation_id": conversation_id,
+        "service_id": conv["service_id"],
+        "messages": [
+            {
+                "role": m["role"],
+                "content": m["content"],
+                "created_at": str(m["created_at"])
+            }
             for m in messages
         ]
     }

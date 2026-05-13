@@ -175,6 +175,47 @@ async def get_ai_response_with_context(service_id: str, messages: list[dict]) ->
         raise RuntimeError(f"OpenAI API error occurred: {e}") from e
     except Exception as e:
         raise RuntimeError(f"Unexpected error interfacing with OpenAI: {e}") from e
+
+async def stream_ai_response_with_context(service_id: str, messages: list[dict]):
+    """
+    Multi-turn conversation support with streaming.
+    Yields chunks of text as they arrive.
+    The final yield will be a dict containing the total tokens used.
+    """
+    if service_id not in SERVICE_CATALOG:
+        raise ValueError("Invalid service_id provided for AI inference.")
+        
+    system_prompt = SERVICE_CATALOG[service_id]["system_prompt"]
+    
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    
+    api_messages = [{"role": "system", "content": system_prompt}]
+    for msg in messages:
+        api_messages.append({"role": msg["role"], "content": msg["content"]})
+    
+    try:
+        stream = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=api_messages,
+            max_tokens=1500,
+            temperature=0.7,
+            stream=True,
+            stream_options={"include_usage": True}
+        )
+        
+        async for chunk in stream:
+            if len(chunk.choices) > 0 and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+            
+            if getattr(chunk, "usage", None):
+                yield {"tokens_used": chunk.usage.total_tokens}
+                
+    except openai.RateLimitError as e:
+        raise RuntimeError("OpenAI rate limit exceeded. Please try again later.") from e
+    except openai.APIError as e:
+        raise RuntimeError(f"OpenAI API error occurred: {e}") from e
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error interfacing with OpenAI: {e}") from e
 async def generate_ai_image(prompt: str) -> str:
     """
     Calls OpenAI DALL-E 3 to generate a high-quality image URL.

@@ -398,10 +398,13 @@ async def transfer_asset(receiver_wallet: str, asset_id: int):
 # BACKEND SESSION EXECUTION
 # ────────────────────────────────────────────────────────
 
-async def execute_service_request(user_wallet: str, service_id: str) -> bool:
+async def execute_service_request(user_wallet: str, service_id: str) -> tuple[bool, str]:
     """
     Submits a transaction to the smart contract on behalf of the user
     to deduct from their session.
+    Returns (success, reason) where reason is one of:
+      'OK', 'SESSION_EXPIRED', 'NO_SESSION', 'INSUFFICIENT_BALANCE',
+      'SESSION_LIMIT_EXCEEDED', 'UNKNOWN'
     """
     from algosdk import account, transaction, mnemonic
     from algosdk.v2client import algod
@@ -415,7 +418,7 @@ async def execute_service_request(user_wallet: str, service_id: str) -> bool:
     sender = account.address_from_private_key(private_key)
     
     params = algod_client.suggested_params()
-    params.fee = 2000 # Cover inner txs
+    params.fee = 2000  # Cover inner txs
     params.flat_fee = True
     
     app_id = settings.app_id_int
@@ -456,8 +459,17 @@ async def execute_service_request(user_wallet: str, service_id: str) -> bool:
             boxes=boxes
         )
         
-        result = await asyncio.to_thread(atc.execute, algod_client, 4)
-        return True
+        await asyncio.to_thread(atc.execute, algod_client, 4)
+        return True, "OK"
     except Exception as e:
+        err_str = str(e).upper()
         print(f"Contract request_service failed: {e}")
-        return False
+        if "SESSION_EXPIRED" in err_str:
+            return False, "SESSION_EXPIRED"
+        if "NO_SESSION" in err_str or "NOSESSION" in err_str:
+            return False, "NO_SESSION"
+        if "INSUFFICIENT_BALANCE" in err_str or "INSUFFICIENT BALANCE" in err_str:
+            return False, "INSUFFICIENT_BALANCE"
+        if "SESSION_LIMIT_EXCEEDED" in err_str or "LIMIT_EXCEEDED" in err_str:
+            return False, "SESSION_LIMIT_EXCEEDED"
+        return False, "UNKNOWN"

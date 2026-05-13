@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { peraWallet } from '../config/peraWallet';
-import { getUserProfile, getServices, getConversationHistory, sendChat, getConversationMessages, getWalletPrepayBalance, depositWalletFunds, getPaymentInfo, deleteConversation, getUserAnalytics } from '../api/client';
+import { getUserProfile, getServices, getConversationHistory, sendChat, streamChat, getConversationMessages, getWalletPrepayBalance, depositWalletFunds, getPaymentInfo, deleteConversation, getUserAnalytics, getSessionStatus } from '../api/client';
 import { useSiwa } from '../hooks/useSiwa';
 
 const DashboardPage = () => {
@@ -28,6 +28,9 @@ const DashboardPage = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [conversationToDelete, setConversationToDelete] = useState(null);
     const [toast, setToast] = useState(null); // { message, type: 'success'|'error' }
+    const [sessionExpiry, setSessionExpiry] = useState(null);
+    const [sessionStatus, setSessionStatus] = useState('none'); // 'none' | 'active' | 'expired'
+    const [sessionCountdown, setSessionCountdown] = useState('');
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -61,6 +64,19 @@ const DashboardPage = () => {
                 const bal = await getWalletPrepayBalance(walletAddress);
                 setBalance(bal.balance_algo);
 
+                // Fetch Session Status
+                try {
+                    const sess = await getSessionStatus(walletAddress);
+                    setSessionExpiry(sess.expiry_timestamp);
+                    if (!sess.has_session) {
+                        setSessionStatus('none');
+                    } else if (sess.is_expired) {
+                        setSessionStatus('expired');
+                    } else {
+                        setSessionStatus('active');
+                    }
+                } catch (_) { }
+
                 // Fetch Analytics
                 try {
                     const analytics = await getUserAnalytics(walletAddress);
@@ -89,6 +105,26 @@ const DashboardPage = () => {
         }
     }, [messages]);
 
+    // Session countdown ticker
+    useEffect(() => {
+        if (sessionStatus !== 'active' || !sessionExpiry) return;
+        const tick = () => {
+            const secs = Math.max(0, sessionExpiry - Math.floor(Date.now() / 1000));
+            if (secs === 0) { setSessionStatus('expired'); setSessionCountdown(''); return; }
+            const h = Math.floor(secs / 3600);
+            const m = Math.floor((secs % 3600) / 60);
+            const s = secs % 60;
+            setSessionCountdown(
+                h > 0
+                    ? `${h}h ${String(m).padStart(2,'0')}m`
+                    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+            );
+        };
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [sessionStatus, sessionExpiry]);
+
     const loadConversation = async (convId, srvId) => {
         setChatLoading(true);
         setActiveConversationId(convId);
@@ -116,30 +152,79 @@ const DashboardPage = () => {
     const executeSend = async (promptText) => {
         const userMsg = { role: 'user', content: promptText };
         setMessages(prev => [...prev, userMsg]);
+        // Add a placeholder for the streaming AI response
+        setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
         setChatLoading(true);
 
         try {
-            const res = await sendChat(
-                activeService.id, 
-                walletAddress, 
-                promptText, 
+            const res = await streamChat(
+                activeService.id,
+                walletAddress,
+                promptText,
                 activeConversationId
             );
-            setActiveConversationId(res.conversation_id);
-            setMessages(res.messages);
-            
-            // Refresh balance & history
-            const bal = await getWalletPrepayBalance(walletAddress);
-            setBalance(bal.balance_algo);
-            const hist = await getConversationHistory(walletAddress);
-            setHistory(hist);
 
-            // Fetch Analytics
-            const analytics = await getUserAnalytics(walletAddress);
-            setStats(analytics);
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let done = false;
+
+            while (!done) {
+                const { value, done: readerDone } = await reader.read();
+                done = readerDone;
+                if (value) {
+                    const chunkStr = decoder.decode(value, { stream: true });
+                    const lines = chunkStr.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6);
+                            try {
+                                const data = JSON.parse(dataStr);
+                                if (data.chunk) {
+                                    setMessages(prev => {
+                                        const newMsgs = [...prev];
+                                        const lastIdx = newMsgs.length - 1;
+                                        newMsgs[lastIdx] = {
+                                            ...newMsgs[lastIdx],
+                                            content: newMsgs[lastIdx].content + data.chunk
+                                        };
+                                        return newMsgs;
+                                    });
+                                } else if (data.done) {
+                                    setActiveConversationId(data.conversation_id);
+                                    setMessages(data.messages);
+                                    
+                                    // Refresh balance & history
+                                    const bal = await getWalletPrepayBalance(walletAddress);
+                                    setBalance(bal.balance_algo);
+                                    const hist = await getConversationHistory(walletAddress);
+                                    setHistory(hist);
+                                    try {
+                                        const analytics = await getUserAnalytics(walletAddress);
+                                        setStats(analytics);
+                                    } catch (_) { }
+                                } else if (data.error) {
+                                    setMessages(prev => [...prev.slice(0, -1), { role: 'assistant', content: `Error: ${data.error}` }]);
+                                }
+                            } catch (e) {
+                                // Ignore incomplete chunks
+                            }
+                        }
+                    }
+                }
+            }
         } catch (err) {
             console.error(err);
-            setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
+            const msg = err.message || '';
+            // Auto-open the auth modal for session errors instead of showing in chat
+            if (msg.includes('SESSION_EXPIRED') || msg.includes('NO_SESSION') || msg.includes('SESSION_AUTH_FAILED')) {
+                const isExpired = msg.includes('SESSION_EXPIRED');
+                setSessionStatus(isExpired ? 'expired' : 'none');
+                setPendingPrompt(promptText);
+                setMessages(prev => prev.slice(0, -1)); // remove the empty placeholder
+                setIsAuthModalOpen(true);
+            } else {
+                setMessages(prev => [...prev.slice(0, -1), { role: 'assistant', content: `Error: ${err.message}` }]);
+            }
         } finally {
             setChatLoading(false);
         }
@@ -165,64 +250,85 @@ const DashboardPage = () => {
     const handleAuthorizeSession = async () => {
         try {
             if (!activeService) return;
-            
-            const amount = 5.0; // Fixed session allowance
-            
             setIsDepositing(true);
+
             const { PeraWalletConnect } = await import('@perawallet/connect');
             const algosdk = (await import('algosdk')).default;
             const ALGOD_API = 'https://testnet-api.algonode.cloud';
-            
+
             const pw = new PeraWalletConnect();
             let accounts = [];
             try { accounts = await pw.reconnectSession(); } catch (_) { }
             if (!accounts || !accounts.length) accounts = await pw.connect();
-            if (accounts[0] !== walletAddress) throw new Error("Wallet mismatch.");
+            if (accounts[0] !== walletAddress) throw new Error('Wallet mismatch.');
 
             const paymentInfo = await getPaymentInfo(activeService.id);
-            const toAddr = paymentInfo.contract_address;
-
             const algodClient = new algosdk.Algodv2('', ALGOD_API, '');
             const params = await algodClient.getTransactionParams().do();
-            const amountMicro = Math.floor(amount * 1_000_000);
 
-            const payTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-                sender: walletAddress, receiver: toAddr, amount: amountMicro, suggestedParams: params,
+            const expiryTime = Math.floor(Date.now() / 1000) + (24 * 60 * 60);
+
+            // If the user already has enough balance, only send start_session (no deposit needed)
+            const hasSufficientBalance = balance >= 0.5; // balance is in ALGO
+
+            // Read the real on-chain escrow balance (microALGO) to use as max_spend.
+            // The contract asserts: escrow_balance >= max_spend, so we must not exceed it.
+            let onChainBalanceMicro = Math.floor(balance * 1_000_000);
+            try {
+                const sess = await getSessionStatus(walletAddress);
+                // session_balance_microalgo holds sb_ box, but we need the b_ (escrow) balance.
+                // Use the backend wallet balance endpoint which reads the b_ box.
+                const balData = await getWalletPrepayBalance(walletAddress);
+                onChainBalanceMicro = balData.balance_microalgo || Math.floor(balance * 1_000_000);
+            } catch (_) { }
+
+            // When depositing, after the deposit lands the escrow will be current + 5 ALGO
+            const depositAmountMicro = 5_000_000;
+            const maxSpend = hasSufficientBalance
+                ? onChainBalanceMicro          // renew only — use existing escrow
+                : onChainBalanceMicro + depositAmountMicro; // deposit + session
+
+            const sessionMethod = new algosdk.ABIMethod({
+                name: 'start_session',
+                args: [{ type: 'uint64', name: 'max_spend' }, { type: 'uint64', name: 'expiry_time' }],
+                returns: { type: 'bool' }
             });
 
-            const method = new algosdk.ABIMethod({
-                name: "deposit",
-                args: [{ type: "pay", name: "payment" }],
-                returns: { type: "uint64" }
-            });
-
-            const dummySigner = algosdk.makeBasicAccountTransactionSigner({ 
-                addr: walletAddress, sk: new Uint8Array(64) 
+            const dummySigner = algosdk.makeBasicAccountTransactionSigner({
+                addr: walletAddress, sk: new Uint8Array(64)
             });
 
             const atc = new algosdk.AtomicTransactionComposer();
-            atc.addMethodCall({
-                appID: parseInt(paymentInfo.app_id),
-                method: method,
-                methodArgs: [{ txn: payTxn, signer: dummySigner }],
-                sender: walletAddress,
-                suggestedParams: params,
-                signer: dummySigner,
-                boxes: [{
-                    appIndex: parseInt(paymentInfo.app_id),
-                    name: new Uint8Array([...new TextEncoder().encode("b_"), ...algosdk.decodeAddress(walletAddress).publicKey])
-                }]
-            });
-            
-            const sessionMethod = new algosdk.ABIMethod({
-                name: "start_session",
-                args: [{ type: "uint64", name: "max_spend" }, { type: "uint64", name: "expiry_time" }],
-                returns: { type: "bool" }
-            });
-            
-            const expiryTime = Math.floor(Date.now() / 1000) + (24 * 60 * 60);
-            const maxSpend = amountMicro; 
-            
+
+            if (!hasSufficientBalance) {
+                // Full flow: deposit 5 ALGO + start_session
+                const amount = 5.0;
+                const toAddr = paymentInfo.contract_address;
+                const amountMicro = Math.floor(amount * 1_000_000);
+
+                const payTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+                    sender: walletAddress, receiver: toAddr, amount: amountMicro, suggestedParams: params,
+                });
+                const depositMethod = new algosdk.ABIMethod({
+                    name: 'deposit',
+                    args: [{ type: 'pay', name: 'payment' }],
+                    returns: { type: 'uint64' }
+                });
+                atc.addMethodCall({
+                    appID: parseInt(paymentInfo.app_id),
+                    method: depositMethod,
+                    methodArgs: [{ txn: payTxn, signer: dummySigner }],
+                    sender: walletAddress,
+                    suggestedParams: params,
+                    signer: dummySigner,
+                    boxes: [{
+                        appIndex: parseInt(paymentInfo.app_id),
+                        name: new Uint8Array([...new TextEncoder().encode('b_'), ...algosdk.decodeAddress(walletAddress).publicKey])
+                    }]
+                });
+            }
+
+            // Always add start_session
             atc.addMethodCall({
                 appID: parseInt(paymentInfo.app_id),
                 method: sessionMethod,
@@ -231,33 +337,35 @@ const DashboardPage = () => {
                 suggestedParams: params,
                 signer: dummySigner,
                 boxes: [
-                    { appIndex: parseInt(paymentInfo.app_id), name: new Uint8Array([...new TextEncoder().encode("sb_"), ...algosdk.decodeAddress(walletAddress).publicKey]) },
-                    { appIndex: parseInt(paymentInfo.app_id), name: new Uint8Array([...new TextEncoder().encode("se_"), ...algosdk.decodeAddress(walletAddress).publicKey]) },
-                    { appIndex: parseInt(paymentInfo.app_id), name: new Uint8Array([...new TextEncoder().encode("b_"), ...algosdk.decodeAddress(walletAddress).publicKey]) }
+                    { appIndex: parseInt(paymentInfo.app_id), name: new Uint8Array([...new TextEncoder().encode('sb_'), ...algosdk.decodeAddress(walletAddress).publicKey]) },
+                    { appIndex: parseInt(paymentInfo.app_id), name: new Uint8Array([...new TextEncoder().encode('se_'), ...algosdk.decodeAddress(walletAddress).publicKey]) },
+                    { appIndex: parseInt(paymentInfo.app_id), name: new Uint8Array([...new TextEncoder().encode('b_'), ...algosdk.decodeAddress(walletAddress).publicKey]) }
                 ]
             });
 
             const group = atc.buildGroup().map(t => t.txn);
             const txId = group[0].txID().toString();
-
             const signed = await pw.signTransaction([group.map(txn => ({ txn, signers: [walletAddress] }))]);
             await algodClient.sendRawTransaction(signed).do();
-
             await algosdk.waitForConfirmation(algodClient, txId, 4);
-            await depositWalletFunds(walletAddress, txId);
-            
+
+            if (!hasSufficientBalance) {
+                await depositWalletFunds(walletAddress, txId);
+            }
+
             const bal = await getWalletPrepayBalance(walletAddress);
             setBalance(bal.balance_algo);
-            
+            setSessionExpiry(expiryTime);
+            setSessionStatus('active');
+
             setIsAuthModalOpen(false);
             if (pendingPrompt) {
                 await executeSend(pendingPrompt);
                 setPendingPrompt('');
             }
-
         } catch (err) {
             console.error(err);
-            alert("Authorization failed: " + err.message);
+            alert('Authorization failed: ' + err.message);
         } finally {
             setIsDepositing(false);
         }
@@ -411,6 +519,26 @@ const DashboardPage = () => {
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             </div>
                         </div>
+
+                        {/* Session Timer Badge */}
+                        {sessionStatus === 'active' && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-xs font-medium text-green-400">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
+                                <span>{sessionCountdown}</span>
+                            </div>
+                        )}
+                        {sessionStatus === 'expired' && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-medium text-red-400 cursor-pointer" onClick={() => setIsAuthModalOpen(true)}>
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
+                                <span>Session expired</span>
+                            </div>
+                        )}
+                        {sessionStatus === 'none' && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-medium text-gray-500">
+                                <div className="w-1.5 h-1.5 rounded-full bg-gray-600"></div>
+                                <span>No session</span>
+                            </div>
+                        )}
                     </div>
                     
                     <div className="flex items-center gap-3">
@@ -565,38 +693,54 @@ const DashboardPage = () => {
                     <div className="glass-card max-w-md w-full p-8 rounded-2xl relative border border-white/10 shadow-2xl text-center">
                         <button onClick={() => { setIsAuthModalOpen(false); setPendingPrompt(''); }} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">✕</button>
                         <div className="w-16 h-16 rounded-full bg-brand-purple/20 flex items-center justify-center mx-auto mb-4 border border-brand-purple/30">
-                            <span className="text-2xl">⚡</span>
+                            <span className="text-2xl">{sessionStatus === 'expired' ? '⏱️' : '⚡'}</span>
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">Authorize AI Session</h2>
-                        <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-                            To start chatting, you need to authorize a session allowance of <strong className="text-white">5.0 ALGO</strong>. 
-                            You will only be asked to sign via Pera Wallet <strong className="text-white">once</strong>. 
-                            Future messages will be automatically deducted.
-                        </p>
-                        
-                        <div className="flex flex-col gap-3">
-                            <button 
-                                onClick={handleAuthorizeSession} 
-                                disabled={isDepositing}
-                                className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {isDepositing ? (
-                                    <>
-                                        <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin"></div>
-                                        Awaiting Signature...
-                                    </>
-                                ) : (
-                                    "Sign with Pera Wallet"
-                                )}
-                            </button>
-                            <button 
-                                onClick={() => { setIsAuthModalOpen(false); setPendingPrompt(''); }} 
-                                disabled={isDepositing}
-                                className="bg-white/5 hover:bg-white/10 text-white w-full py-3 rounded-xl text-sm font-medium transition-colors"
-                            >
-                                Cancel
-                            </button>
-                        </div>
+
+                        {sessionStatus === 'expired' ? (
+                            <>
+                                <h2 className="text-2xl font-bold text-white mb-2">Session Expired</h2>
+                                <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                                    Your 24-hour session has expired. Sign once to renew.
+                                </p>
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        onClick={handleAuthorizeSession}
+                                        disabled={isDepositing}
+                                        className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        {isDepositing ? (
+                                            <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin"></div>Awaiting Signature...</>
+                                        ) : (
+                                            balance >= 0.5 ? 'Renew session (free)' : 'Deposit 5 ALGO and start session'
+                                        )}
+                                    </button>
+                                    <button onClick={() => { setIsAuthModalOpen(false); setPendingPrompt(''); }} disabled={isDepositing} className="bg-white/5 hover:bg-white/10 text-white w-full py-3 rounded-xl text-sm font-medium transition-colors">Cancel</button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="text-2xl font-bold text-white mb-2">Authorize AI Session</h2>
+                                <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                                    To start chatting, you need to authorize a session allowance of <strong className="text-white">5.0 ALGO</strong>.
+                                    You will only be asked to sign via Pera Wallet <strong className="text-white">once</strong>.
+                                    Future messages will be automatically deducted.
+                                </p>
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        onClick={handleAuthorizeSession}
+                                        disabled={isDepositing}
+                                        className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        {isDepositing ? (
+                                            <><div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin"></div>Awaiting Signature...</>
+                                        ) : (
+                                            'Sign with Pera Wallet'
+                                        )}
+                                    </button>
+                                    <button onClick={() => { setIsAuthModalOpen(false); setPendingPrompt(''); }} disabled={isDepositing} className="bg-white/5 hover:bg-white/10 text-white w-full py-3 rounded-xl text-sm font-medium transition-colors">Cancel</button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}

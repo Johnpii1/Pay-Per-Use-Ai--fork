@@ -5,7 +5,9 @@ Protected by SIWA JWT authentication and rate limiting.
 """
 import uuid
 import hashlib
+import json
 from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -58,17 +60,13 @@ class HistoryOut(BaseModel):
     paid: int
 
 
-@router.post("/chat", response_model=ChatOut, status_code=200)
+@router.post("/chat", status_code=200)
 @limiter.limit("10/minute")
 async def chat(request: Request, data: ChatIn, wallet_address: str = Depends(get_current_user)):
     """
-    Multi-turn conversational AI endpoint.
-    Creates or continues a conversation with full context preservation.
-    
-    Trust model: Balance is checked on-chain (smart contract escrow).
-    Backend does NOT deduct — the user must have called request_service()
-    on-chain first, or have sufficient escrow balance.
+    Multi-turn conversational AI endpoint with Server-Sent Events (SSE).
     """
+    from app.services.ai_service import SERVICE_CATALOG, stream_ai_response_with_context
     if data.service_id not in SERVICE_CATALOG:
         raise HTTPException(status_code=404, detail="Service not found")
 
@@ -99,83 +97,103 @@ async def chat(request: Request, data: ChatIn, wallet_address: str = Depends(get
 
     # ── On-chain Session Deduction via Smart Contract ──
     from app.services.algorand_service import execute_service_request
-    success = await execute_service_request(data.wallet_address, data.service_id)
+    success, reason = await execute_service_request(data.wallet_address, data.service_id)
     
     if not success:
-        raise HTTPException(
-            status_code=402,
-            detail="Session authorization failed. Ensure you have started a session and have sufficient balance.",
-            headers={"X-Insufficient-Balance": "true"}
-        )
+        if reason == "SESSION_EXPIRED":
+            raise HTTPException(
+                status_code=402,
+                detail="SESSION_EXPIRED",
+                headers={"X-Session-Status": "expired"}
+            )
+        if reason in ("NO_SESSION", "SESSION_LIMIT_EXCEEDED"):
+            raise HTTPException(
+                status_code=402,
+                detail="NO_SESSION",
+                headers={"X-Session-Status": "none"}
+            )
+        if reason == "INSUFFICIENT_BALANCE":
+            raise HTTPException(
+                status_code=402,
+                detail="INSUFFICIENT_BALANCE",
+                headers={"X-Session-Status": "low_balance"}
+            )
+        raise HTTPException(status_code=402, detail="SESSION_AUTH_FAILED")
 
     # Fetch full conversation history for context
     all_messages = await get_conversation_messages(conversation_id)
     context_messages = [{"role": m["role"], "content": m["content"]} for m in all_messages]
 
-    # Get AI response with full context
-    try:
-        ai_text, tokens_used = await get_ai_response_with_context(data.service_id, context_messages)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
-
-    cost_usd = round(tokens_used * COST_PER_TOKEN, 13)
-    
-    # Calculate cost in microALGO for logging (no deduction — that's on-chain)
-    cost_algo = cost_usd / 0.20  # Assuming 1 ALGO = $0.20
-    cost_microalgo = max(0, int(cost_algo * 1_000_000))
-    
-    # ── Log usage to PostgreSQL audit trail (NOT deduction — just logging) ──
-    await log_transaction(
-        wallet_address=data.wallet_address,
-        tx_type="ai_usage",
-        amount_microalgo=cost_microalgo,
-        description=f"AI usage: {data.service_id} | {tokens_used} tokens | ${cost_usd:.8f}"
-    )
-
-    # Save AI response
-    await add_message(conversation_id, "assistant", ai_text, tokens_used, cost_usd)
-
-    # ── Proof of Intelligence: hash prompt + response, log on-chain ──
-    prompt_hash = hashlib.sha256(data.prompt.encode()).hexdigest()
-    response_hash = hashlib.sha256(ai_text.encode()).hexdigest()
-    
-    # Fire and forget on-chain proof transaction
-    from app.services.algorand_service import send_on_chain_proof
-    import asyncio
-    asyncio.create_task(send_on_chain_proof(data.wallet_address, ai_text))
-    
-    # Log AI query to PostgreSQL for analytics
-    await log_ai_query(
-        wallet_address=data.wallet_address,
-        service_id=data.service_id,
-        prompt_hash=prompt_hash,
-        response_hash=response_hash,
-        tokens_used=tokens_used,
-        conversation_id=conversation_id,
-    )
-
-    # Fetch updated conversation
-    conv = await get_conversation(conversation_id)
-    updated_messages = await get_conversation_messages(conversation_id)
-
-    return ChatOut(
-        conversation_id=conversation_id,
-        ai_response=ai_text,
-        tokens_used=tokens_used,
-        cost_usd=cost_usd,
-        total_tokens_session=conv["total_tokens"],
-        total_cost_session=conv["total_cost_usd"],
-        messages=[
-            MessageOut(
-                role=m["role"],
-                content=m["content"],
-                tokens_used=m["tokens_used"],
-                cost_usd=m["cost_usd"],
-                created_at=str(m["created_at"])
+    async def generate():
+        ai_text_chunks = []
+        tokens_used = 0
+        try:
+            stream = stream_ai_response_with_context(data.service_id, context_messages)
+            async for chunk in stream:
+                if isinstance(chunk, dict) and "tokens_used" in chunk:
+                    tokens_used = chunk["tokens_used"]
+                else:
+                    ai_text_chunks.append(chunk)
+                    yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                    
+            ai_text = "".join(ai_text_chunks)
+            
+            cost_usd = round(tokens_used * COST_PER_TOKEN, 13)
+            cost_algo = cost_usd / 0.20
+            cost_microalgo = max(0, int(cost_algo * 1_000_000))
+            
+            await log_transaction(
+                wallet_address=data.wallet_address,
+                tx_type="ai_usage",
+                amount_microalgo=cost_microalgo,
+                description=f"AI usage: {data.service_id} | {tokens_used} tokens | ${cost_usd:.8f}"
             )
-            for m in updated_messages
-        ]
-    )
+            
+            await add_message(conversation_id, "assistant", ai_text, tokens_used, cost_usd)
+            
+            prompt_hash = hashlib.sha256(data.prompt.encode()).hexdigest()
+            response_hash = hashlib.sha256(ai_text.encode()).hexdigest()
+            
+            from app.services.algorand_service import send_on_chain_proof
+            import asyncio
+            asyncio.create_task(send_on_chain_proof(data.wallet_address, ai_text))
+            
+            await log_ai_query(
+                wallet_address=data.wallet_address,
+                service_id=data.service_id,
+                prompt_hash=prompt_hash,
+                response_hash=response_hash,
+                tokens_used=tokens_used,
+                conversation_id=conversation_id,
+            )
+            
+            conv = await get_conversation(conversation_id)
+            updated_messages = await get_conversation_messages(conversation_id)
+            
+            final_data = {
+                "done": True,
+                "conversation_id": conversation_id,
+                "tokens_used": tokens_used,
+                "cost_usd": cost_usd,
+                "total_tokens_session": conv["total_tokens"],
+                "total_cost_session": conv["total_cost_usd"],
+                "messages": [
+                    {
+                        "role": m["role"],
+                        "content": m["content"],
+                        "tokens_used": m["tokens_used"],
+                        "cost_usd": m["cost_usd"],
+                        "created_at": str(m["created_at"])
+                    }
+                    for m in updated_messages
+                ]
+            }
+            yield f"data: {json.dumps(final_data)}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @router.get("/conversations/{wallet_address}")

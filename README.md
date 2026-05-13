@@ -1,8 +1,6 @@
 <div align="center">
   
-  <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Rocket.png" alt="Rocket" width="50" height="50" />
-
-  <h1 align="center">🌌 PayPerAI</h1>
+  <h1 align="center">🚀 PayPerAI</h1>
   
   <p align="center">
     <b>The Future of Blockchain-Gated AI & One-Click NFT Generation</b>
@@ -102,6 +100,21 @@ Our contract utilizes Algorand's latest `BoxMap` technology to handle dynamic pr
 
 ---
 
+## 🎯 User Workflow (End-to-End Flow)
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  1. CONNECT  →  Scan QR with Pera (MainNet), switch to TestNet   │
+│  2. BROWSE   →  Choose from 6 AI services on the Services page   │
+│  3. AUTHORIZE→  Sign once for a 24-hour smart contract session   │
+│  4. USE      →  Chat with AI (Streaming) → costs auto-deducted   │
+│  5. MINT     →  One-click: AI Art → ARC-69 NFT → your wallet     │
+│  6. VERIFY   →  Check Testnet Explorer for Proof-of-Intelligence │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## 🧱 Architecture Diagram
 
 ```mermaid
@@ -175,9 +188,11 @@ npm run dev
 ---
 
 <div align="center">
-  <br />
-  <p>
-    <b>Built with ❤️ by Team Debuggers United</b>
-  </p>
-  <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Flexed%20Biceps%20Medium-Dark%20Skin%20Tone.png" alt="Flexed Biceps" width="35" height="35" />
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=009688&height=120&section=footer" width="100%" />
+  <h2>🚀 <b>Team Pay-Per-UseAI</b> 🚀</h2>
+  <p><i>Building the decentralized future of AI economies.</i></p>
+  <br/>
+  <a href="https://github.com/WPrasad99/Pay-Per-Use-Ai">
+    <img src="https://img.shields.io/badge/Star_Our_Repo-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
+  </a>
 </div>

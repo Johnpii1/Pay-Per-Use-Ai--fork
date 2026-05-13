@@ -2,274 +2,205 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const SERVICES_PREVIEW = [
-    { icon: '🔍', name: 'Code Reviewer', desc: 'Expert code review for bugs, security & performance.', price: '0.5' },
-    { icon: '✍️', name: 'Essay Writer', desc: 'Compelling essays crafted by award-winning AI writers.', price: '1.0' },
-    { icon: '📧', name: 'Cold Email Writer', desc: 'High-converting outreach emails that get replies.', price: '0.5' },
-    { icon: '🤖', name: 'Humanize Text', desc: 'Transform AI text into natural human-sounding content.', price: '0.5' },
-    { icon: '📊', name: 'Data Analyst', desc: 'Surface key insights from your data like a pro.', price: '2.0' },
+    { icon: '🔍', name: 'Code Reviewer', desc: 'Security, performance, and PR-ready code audit summaries.', price: '0.5', tag: 'Engineering' },
+    { icon: '📊', name: 'Data Analyst', desc: 'Turn CSVs, numbers, and messy notes into boardroom insights.', price: '2.0', tag: 'Operations' },
+    { icon: '📧', name: 'Sales Writer', desc: 'Personalized cold outreach, follow-ups, and objection handlers.', price: '0.5', tag: 'Revenue' },
+    { icon: '🧾', name: 'Policy Summarizer', desc: 'Readable summaries for documents, SOPs, and compliance drafts.', price: '1.0', tag: 'Admin' },
+    { icon: '🤖', name: 'Humanize Text', desc: 'Clean, natural business writing without subscription lock-in.', price: '0.5', tag: 'Content' },
 ];
 
 const STEPS = [
-    {
-        num: '01',
-        title: 'Choose Service',
-        desc: 'Browse our AI services and pick the one that fits your need.',
-        icon: '🎯'
-    },
-    {
-        num: '02',
-        title: 'Pay with ALGO',
-        desc: 'Send ALGO from your Pera Wallet to the platform address.',
-        icon: '💎'
-    },
-    {
-        num: '03',
-        title: 'Verify & Get Result',
-        desc: 'Paste your Transaction ID — we verify on-chain and deliver your AI response instantly.',
-        icon: '⚡'
-    },
+    { num: '01', title: 'Pick a task, not a plan', desc: 'Choose the AI worker you need for one job: code, analysis, writing, support, or content.', icon: '🎯' },
+    { num: '02', title: 'Authorize only the spend', desc: 'Connect Pera Wallet and approve a tiny ALGO allowance. No subscription, no surprise renewal.', icon: '🛡️' },
+    { num: '03', title: 'Get the result + proof', desc: 'The request is unlocked after on-chain verification, so teams can audit every paid usage.', icon: '⚡' },
 ];
 
 const FEATURES = [
-    { icon: '🔗', title: 'Blockchain Verified', desc: 'Every payment is verified directly on the Algorand blockchain. No middlemen.' },
-    { icon: '💸', title: 'Pay Per Use', desc: 'No subscriptions, no hidden fees. Pay only for the AI services you use.' },
-    { icon: '🚀', title: 'Lightning Fast', desc: 'Get your AI response in seconds after blockchain verification.' },
-    { icon: '🔒', title: 'Fully Transparent', desc: 'Open, auditable transactions. Your payment trail is public and immutable.' },
-    { icon: '🎯', title: 'Premium AI Models', desc: 'Powered by GPT-4o-mini with expert-tuned system prompts for each service.' },
-    { icon: '🌐', title: 'No Account Needed', desc: 'Just a wallet. No email, no password, no personal data required.' },
+    { icon: '🔗', title: 'On-chain proof of usage', desc: 'Each paid action is tied to Algorand verification, making spend easier to audit.' },
+    { icon: '💸', title: 'True pay-per-use pricing', desc: 'A practical fit for SMEs, colleges, agencies, and teams that cannot justify monthly AI seats.' },
+    { icon: '🔐', title: 'Wallet-first access', desc: 'Reduce account friction while keeping payment consent explicit through Pera Wallet.' },
+    { icon: '📈', title: 'Usage dashboard', desc: 'Track balance, sessions, history, and analytics from one focused workspace.' },
+    { icon: '🧠', title: 'Task-specific AI workers', desc: 'Services are packaged around real outcomes instead of a blank generic chatbot.' },
+    { icon: '🧾', title: 'Enterprise-ready transparency', desc: 'Clear pricing, transaction proof, and explainable flow help build industry trust.' },
+];
+
+const ROADMAP = [
+    'Industry templates for legal, HR, finance, sales, and support teams',
+    'Team workspaces with roles, budgets, and monthly spend limits',
+    'Invoice export with transaction IDs for accounting and audits',
+    'BYOK / model choice layer so companies can choose cost vs quality',
+    'Document upload, knowledge base, and private project memory',
+    'Admin analytics: cost per task, saved hours, and department usage',
+];
+
+const TRUST_STATS = [
+    { value: '0', label: 'subscription lock-in' },
+    { value: '1 tx', label: 'verifiable payment proof' },
+    { value: '24h', label: 'session allowance window' },
 ];
 
 const Home = () => {
     const [isWalletConnected, setIsWalletConnected] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setIsWalletConnected(!!sessionStorage.getItem('wallet_address'));
+
+        // trigger fade-in after mount
+        setMounted(true);
     }, []);
 
     return (
-        <div className="overflow-hidden">
-            {/* ─── HERO ─── */}
-            <section className="relative min-h-screen flex items-center justify-center px-6 pt-24">
-                {/* Background effects */}
-                <div className="absolute inset-0">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-purple/10 rounded-full blur-[120px]"></div>
-                    <div className="absolute top-1/4 right-1/4 w-[300px] h-[300px] bg-brand-violet/8 rounded-full blur-[100px]"></div>
-                </div>
+        <div
+            className={`overflow-x-hidden bg-neo-cream text-neo-ink transition-all duration-700 ease-out
+            ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
+        >
 
-                <div className="relative z-10 text-center max-w-4xl">
-                    <div className="section-tag animate-fade-in">Built on Algorand Blockchain</div>
-                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold text-white leading-[1.1] mb-6 animate-slide-up">
-                        Premium AI,{' '}
-                        <span className="italic gradient-text">powered by</span>{' '}
-                        blockchain.
-                    </h1>
-                    <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                        Pay per use in ALGO. No subscriptions. No accounts. Just verify on-chain and get your AI response instantly.
-                    </p>
-                    <div className="flex items-center justify-center gap-4 flex-wrap animate-slide-up" style={{ animationDelay: '0.4s' }}>
-                        <Link to="/dashboard" className="btn-primary text-base">
-                            {isWalletConnected ? 'Go to Dashboard →' : 'Connect to your wallet →'}
-                        </Link>
-                        <a href="#how-it-works" className="btn-secondary text-base">
-                            See How It Works
-                        </a>
-                    </div>
-                </div>
-            </section>
+            {/* HERO */}
+            <section className="relative min-h-screen px-4 sm:px-5 pt-24 pb-16 md:px-8 flex items-center">
+                <div className="neo-grid absolute inset-0 opacity-70" />
 
-            {/* ─── ABOUT ─── */}
-            <section id="about" className="py-24 px-6">
-                <div className="max-w-6xl mx-auto">
-                    <div className="grid md:grid-cols-2 gap-16 items-center">
-                        <div>
-                            <span className="section-tag">About PayPerAI</span>
-                            <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-6 leading-tight">
-                                AI services that respect your <span className="italic text-brand-light">freedom.</span>
-                            </h2>
-                            <p className="text-gray-400 leading-relaxed mb-6 text-lg">
-                                PayPerAI is a blockchain-gated AI platform where you pay only for what you use. No monthly subscriptions, no accounts, no data harvesting. Just connect your Algorand wallet, pay in ALGO, and get premium AI responses instantly.
-                            </p>
-                            <p className="text-gray-500 leading-relaxed">
-                                Every transaction is verified directly on the Algorand Testnet blockchain — fully transparent, fully auditable, and impossibly fast.
-                            </p>
+                <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-10 grid-cols-1 lg:grid-cols-[1.06fr_0.94fr]">
+
+                    {/* LEFT */}
+                    <div>
+                        <div className='mt-3 md:mt-8'>
+                        <div className="mb-6 md:mb-8 inline-flex items-center gap-2 border-4 border-neo-ink bg-white px-4 py-2 font-black uppercase tracking-[0.18em] shadow-brutal-sm">
+                            <span className="h-3 w-3 rounded-full bg-neo-green ring-2 ring-neo-ink" />
+                            Trustworthy Pay-Per-Use AI
                         </div>
-                        <div className="relative">
-                            <div className="relative p-6 overflow-hidden border border-white/5 rounded-2xl">
-                                {/* Background decorative circles - subtler */}
-                                <div className="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl"></div>
-                                <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-white/5 rounded-full blur-2xl"></div>
-                                
-                                {/* Header */}
-                                <div className="relative flex items-center gap-3 mb-6">
-                                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                                        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-white font-bold text-lg">Platform Metrics</h3>
-                                        <p className="text-gray-500 text-[10px] uppercase tracking-[0.2em] font-semibold">Live Statistics</p>
+</div>
+                        <h1 className="text-4xl md:text-7xl lg:text-8xl font-black leading-[0.95] tracking-[-0.06em]">
+                            Industrial AI without the subscription trap.
+                        </h1>
+
+                        <p className="mt-6 max-w-2xl text-base md:text-xl font-semibold text-neo-muted">
+                            PayPerAI turns premium AI into auditable micro-services.
+                        </p>
+
+                        <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                            <Link to="/dashboard" className="btn-primary">
+                                {isWalletConnected ? 'Open workspace →' : 'Connect wallet →'}
+                            </Link>
+                            <a href="#final-round" className="btn-secondary">
+                                Product roadmap
+                            </a>
+                        </div>
+
+                        {/* STATS */}
+                        <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {TRUST_STATS.map((stat) => (
+                                <div
+                                    key={stat.label}
+                                    className="neo-card bg-white p-4 text-center transition hover:scale-105 duration-300"
+                                >
+                                    <div className="text-2xl md:text-3xl font-black">{stat.value}</div>
+                                    <div className="text-xs font-bold uppercase text-neo-muted">
+                                        {stat.label}
                                     </div>
                                 </div>
-
-                                {/* Stats grid */}
-                                <div className="relative grid grid-cols-2 gap-3">
-                                    <div className="group/card bg-gradient-to-br from-white/[0.04] to-white/[0.01] rounded-xl p-5 border border-white/[0.06] hover:border-brand-purple/30 transition-all duration-500 hover:scale-[1.02]">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-7 h-7 rounded-lg bg-brand-purple/15 flex items-center justify-center">
-                                                <span className="text-sm">🤖</span>
-                                            </div>
-                                            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Services</span>
-                                        </div>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-3xl font-serif font-bold text-white">5</span>
-                                            <span className="text-brand-light text-xs font-bold">+</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="group/card bg-gradient-to-br from-white/[0.04] to-white/[0.01] rounded-xl p-5 border border-white/[0.06] hover:border-brand-violet/30 transition-all duration-500 hover:scale-[1.02]">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-7 h-7 rounded-lg bg-brand-violet/15 flex items-center justify-center">
-                                                <span className="text-sm">💎</span>
-                                            </div>
-                                            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Min Cost</span>
-                                        </div>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-3xl font-serif font-bold text-white">0.5</span>
-                                            <span className="text-brand-light text-xs font-bold">ALGO</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="group/card bg-gradient-to-br from-white/[0.04] to-white/[0.01] rounded-xl p-5 border border-white/[0.06] hover:border-brand-purple/30 transition-all duration-500 hover:scale-[1.02]">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-7 h-7 rounded-lg bg-brand-purple/15 flex items-center justify-center">
-                                                <span className="text-sm">⚡</span>
-                                            </div>
-                                            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Speed</span>
-                                        </div>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-3xl font-serif font-bold text-white">~3</span>
-                                            <span className="text-brand-light text-xs font-bold">SEC</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="group/card bg-gradient-to-br from-white/[0.04] to-white/[0.01] rounded-xl p-5 border border-white/[0.06] hover:border-green-500/30 transition-all duration-500 hover:scale-[1.02]">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center">
-                                                <span className="text-sm">✅</span>
-                                            </div>
-                                            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Verified</span>
-                                        </div>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-3xl font-serif font-bold text-green-400">100</span>
-                                            <span className="text-green-500 text-xs font-bold">%</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Bottom bar */}
-                                <div className="relative mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
-                                    <span className="text-[10px] text-gray-600">Algorand Testnet</span>
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
-                                        <span className="text-[10px] text-green-400 font-semibold">Online</span>
-                                    </div>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     </div>
+
+                    {/* RIGHT */}
+                    <div className="neo-card bg-neo-ink p-4 text-white shadow-brutal-lg">
+                        <h2 className="text-xl md:text-2xl font-black">Pay only for tasks</h2>
+
+                        <div className="mt-5 space-y-4">
+                            {SERVICES_PREVIEW.slice(0, 3).map((service) => (
+                                <div
+                                    key={service.name}
+                                    className="flex items-center gap-3 rounded-2xl bg-white p-3 text-neo-ink transition hover:translate-x-1"
+                                >
+                                    <div className="text-2xl">{service.icon}</div>
+                                    <div className="flex-1">
+                                        <p className="font-black text-sm">{service.name}</p>
+                                        <p className="text-xs text-neo-muted truncate">{service.desc}</p>
+                                    </div>
+                                    <div className="font-black text-sm">{service.price}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                 </div>
             </section>
 
-            {/* ─── HOW IT WORKS (Flow Diagram) ─── */}
-            <section id="how-it-works" className="py-24 px-6 relative">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-brand-purple/3 to-transparent"></div>
-                <div className="relative z-10 max-w-6xl mx-auto">
-                    <div className="text-center mb-16">
-                        <span className="section-tag">Process</span>
-                        <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4">
-                            Three effortless <span className="italic text-brand-light">steps.</span>
-                        </h2>
-                        <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                            From choosing a service to getting your AI response — it takes less than a minute.
-                        </p>
-                    </div>
+            {/* HOW IT WORKS */}
+            <section id="how-it-works" className="px-4 sm:px-5 py-20 md:px-8">
+                <div className="mx-auto max-w-7xl">
+                    <h2 className="text-3xl md:text-6xl font-black">
+                        Three steps. Zero SaaS drama.
+                    </h2>
 
-                    <div className="grid md:grid-cols-3 gap-8 relative">
-                        {/* Connecting line */}
-                        <div className="hidden md:block absolute top-1/2 left-[15%] right-[15%] glow-line"></div>
-
-                        {STEPS.map((step, i) => (
-                            <div key={step.num} className="relative glass-card glass-card-hover rounded-2xl p-8 text-center transition-all duration-500" style={{ animationDelay: `${i * 0.2}s` }}>
-                                <div className="text-4xl mb-4">{step.icon}</div>
-                                <div className="text-xs font-bold text-brand-light tracking-wider mb-2">STEP {step.num}</div>
-                                <h3 className="text-xl font-bold text-white mb-3">{step.title}</h3>
-                                <p className="text-gray-400 text-sm leading-relaxed">{step.desc}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="text-center mt-12">
-                        <Link to="/dashboard" className="btn-primary">Start Now →</Link>
-                    </div>
-                </div>
-            </section>
-
-            {/* ─── SERVICES PREVIEW ─── */}
-            <section id="services-preview" className="py-24 px-6">
-                <div className="max-w-6xl mx-auto">
-                    <div className="text-center mb-16">
-                        <span className="section-tag">Services</span>
-                        <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4">
-                            Premium AI at your <span className="italic text-brand-light">fingertips.</span>
-                        </h2>
-                        <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                            Each service is powered by expert-tuned AI models, gated by Algorand blockchain payments.
-                        </p>
-                    </div>
-
-                    <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
-                        {SERVICES_PREVIEW.map((s, i) => (
-                            <div key={s.name} className="glass-card glass-card-hover rounded-2xl p-6 text-center transition-all duration-500 group cursor-pointer">
-                                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">{s.icon}</div>
-                                <h3 className="font-bold text-white text-sm mb-2">{s.name}</h3>
-                                <p className="text-gray-500 text-xs leading-relaxed mb-3">{s.desc}</p>
-                                <div className="text-brand-light font-bold text-sm">{s.price} ALGO</div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="text-center mt-10">
-                        <Link to="/dashboard" className="btn-primary">Buy Access →</Link>
-                    </div>
-                </div>
-            </section>
-
-            {/* ─── WHY CHOOSE US ─── */}
-            <section id="why-us" className="py-24 px-6 relative">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-brand-violet/3 to-transparent"></div>
-                <div className="relative z-10 max-w-6xl mx-auto">
-                    <div className="text-center mb-16">
-                        <span className="section-tag">Why Choose Us</span>
-                        <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4">
-                            Built different, by <span className="italic text-brand-light">design.</span>
-                        </h2>
-                        <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                            PayPerAI replaces expensive API subscriptions with transparent, per-use blockchain payments.
-                        </p>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {FEATURES.map((f, i) => (
-                            <div key={f.title} className="glass-card glass-card-hover rounded-2xl p-8 transition-all duration-500">
-                                <div className="text-3xl mb-4">{f.icon}</div>
-                                <h3 className="text-lg font-bold text-white mb-2">{f.title}</h3>
-                                <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
+                    <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-5">
+                        {STEPS.map((step) => (
+                            <div key={step.num} className="neo-card bg-white p-6 transition hover:-translate-y-2">
+                                <div className="text-4xl">{step.icon}</div>
+                                <h3 className="mt-4 text-xl font-black">{step.title}</h3>
+                                <p className="mt-2 text-neo-muted font-semibold">{step.desc}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
+
+            {/* SERVICES */}
+            <section id="services-preview" className="px-4 sm:px-5 py-20 md:px-8">
+                <div className="mx-auto max-w-7xl text-center">
+                    <h2 className="text-3xl md:text-6xl font-black">AI micro-services</h2>
+
+                    <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                        {SERVICES_PREVIEW.map((service) => (
+                            <div key={service.name} className="neo-card bg-white p-5 transition hover:-translate-y-2">
+                                <div className="text-3xl">{service.icon}</div>
+                                <h3 className="mt-3 font-black">{service.name}</h3>
+                                <p className="mt-2 text-sm text-neo-muted">{service.desc}</p>
+                                <div className="mt-4 font-black">{service.price} ALGO</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* FEATURES */}
+            <section id="why-us" className="px-4 sm:px-5 py-20 md:px-8">
+                <div className="mx-auto max-w-7xl">
+                    <h2 className="text-3xl md:text-6xl font-black">
+                        Trust signals that matter
+                    </h2>
+
+                    <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {FEATURES.map((f) => (
+                            <div key={f.title} className="neo-card bg-white p-6 transition hover:scale-105">
+                                <div className="text-2xl">{f.icon}</div>
+                                <h3 className="mt-3 text-xl font-black">{f.title}</h3>
+                                <p className="mt-2 text-neo-muted">{f.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ROADMAP */}
+            <section id="final-round" className="px-4 sm:px-5 py-20 md:px-8">
+                <div className="mx-auto max-w-7xl">
+                    <h2 className="text-3xl md:text-6xl font-black">
+                        What we refine next
+                    </h2>
+
+                    <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {ROADMAP.map((item, i) => (
+                            <div key={item} className="neo-card bg-white p-4 flex gap-3 transition hover:translate-x-1">
+                                <span className="font-black">{i + 1}.</span>
+                                <p className="font-semibold">{item}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
         </div>
     );
 };

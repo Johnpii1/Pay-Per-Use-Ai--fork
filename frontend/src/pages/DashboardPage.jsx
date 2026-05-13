@@ -24,22 +24,13 @@ const demoUsage = [
     { day: 'Sun', tokens: 2900, cost: 0.62 },
 ];
 
-const modelMix = [
-    { name: 'GPT-4o', pct: 46, color: 'bg-neo-blue' },
-    { name: 'Claude', pct: 31, color: 'bg-neo-pink' },
-    { name: 'Gemini', pct: 23, color: 'bg-neo-green' },
-];
-
-const quickPrompts = [
-    'Summarize this customer feedback and estimate output cost.',
-    'Draft a landing page hero for a pay-per-use AI SaaS.',
-    'Analyze my daily AI spend and suggest budget controls.',
-    'Create a concise sales email for wallet-based AI access.',
-];
-
 const formatAlgo = (value) => Number(value || 0).toFixed(3);
+
 const estimateTokens = (text) =>
-    Math.max(18, Math.ceil((text || '').trim().split(/\s+/).filter(Boolean).length * 1.45));
+    Math.max(
+        18,
+        Math.ceil((text || '').trim().split(/\s+/).filter(Boolean).length * 1.45)
+    );
 
 const DashboardPage = () => {
     const navigate = useNavigate();
@@ -52,33 +43,14 @@ const DashboardPage = () => {
     const [history, setHistory] = useState([]);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [chatLoading, setChatLoading] = useState(false);
     const [activeConversationId, setActiveConversationId] = useState(null);
     const [balance, setBalance] = useState(0);
     const [visualBalance, setVisualBalance] = useState(0);
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-    const [pendingPrompt, setPendingPrompt] = useState('');
     const [stats, setStats] = useState(null);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [conversationToDelete, setConversationToDelete] = useState(null);
-    const [toast, setToast] = useState(null);
-    const [liveUsage, setLiveUsage] = useState({
-        tokens: 0,
-        cost: 0,
-        previousBalance: 0,
-        nextBalance: 0,
-    });
-    const [localTransactions, setLocalTransactions] = useState([]);
 
     const chatContainerRef = useRef(null);
-
-    const showToast = (message, type = 'success') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 3500);
-    };
 
     useEffect(() => {
         if (!walletAddress) {
@@ -108,7 +80,11 @@ const DashboardPage = () => {
                 } catch (_) {}
             } catch (err) {
                 console.error(err);
-                navigate('/');
+                if (err.message === 'User not found') navigate('/onboarding');
+                else {
+                    sessionStorage.clear();
+                    navigate('/');
+                }
             } finally {
                 setLoading(false);
             }
@@ -124,6 +100,29 @@ const DashboardPage = () => {
         }
     }, [messages, chatLoading]);
 
+    const [liveUsage, setLiveUsage] = useState({
+        tokens: 0,
+        cost: 0,
+        previousBalance: 0,
+        nextBalance: 0,
+    });
+
+    useEffect(() => {
+        const tokens = estimateTokens(input);
+        const unitPrice = Number(activeService?.price_algo || 0.003);
+
+        const cost = input.trim()
+            ? Math.max(0.001, tokens * unitPrice * 0.008)
+            : 0;
+
+        setLiveUsage({
+            tokens: input.trim() ? tokens : 0,
+            cost,
+            previousBalance: visualBalance,
+            nextBalance: Math.max(0, visualBalance - cost),
+        });
+    }, [input, activeService, visualBalance]);
+
     const totalTokens =
         stats?.tokens_used_30d ||
         demoUsage.reduce((sum, d) => sum + d.tokens, 0);
@@ -131,12 +130,6 @@ const DashboardPage = () => {
     const totalSpent =
         stats?.spent_algo_30d ||
         demoUsage.reduce((sum, d) => sum + d.cost, 0);
-
-    const averageSession =
-        stats?.avg_algo_per_session ||
-        (history.length ? totalSpent / history.length : 0.37);
-
-    const maxTokens = Math.max(...demoUsage.map((d) => d.tokens));
 
     const recentTransactions = useMemo(() => {
         const historyRows = history.slice(0, 4).map((item, index) => ({
@@ -148,11 +141,16 @@ const DashboardPage = () => {
         }));
 
         return [
-            ...localTransactions,
             ...historyRows,
-            { id: 'topup', label: 'Wallet top-up', amount: 5, time: 'Today' },
+            {
+                id: 'wallet-topup',
+                label: 'Wallet top-up',
+                amount: 5,
+                time: 'Today',
+                type: 'deposit',
+            },
         ].slice(0, 5);
-    }, [history, localTransactions]);
+    }, [history]);
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -160,65 +158,119 @@ const DashboardPage = () => {
 
         const text = input;
         setInput('');
-        setMessages((p) => [...p, { role: 'user', content: text }]);
+
+        setMessages((prev) => [
+            ...prev,
+            { role: 'user', content: text },
+        ]);
+
+        setChatLoading(true);
+
+        try {
+            const res = await sendChat(
+                activeService.id,
+                walletAddress,
+                text,
+                activeConversationId
+            );
+
+            setActiveConversationId(res.conversation_id);
+            setMessages(res.messages);
+
+            const bal = await getWalletPrepayBalance(walletAddress);
+            setBalance(bal.balance_algo);
+            setVisualBalance(bal.balance_algo);
+
+            const hist = await getConversationHistory(walletAddress);
+            setHistory(hist);
+
+            const analytics = await getUserAnalytics(walletAddress);
+            setStats(analytics);
+        } catch (err) {
+            setMessages((prev) => [
+                ...prev,
+                { role: 'assistant', content: `Error: ${err.message}` },
+            ]);
+        } finally {
+            setChatLoading(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        await signOut();
+        navigate('/');
     };
 
     if (loading) {
-        return <div className="p-10 font-black">Loading...</div>;
+        return (
+            <div className="min-h-screen bg-neo-cream p-6">
+                <div className="animate-pulse">Loading...</div>
+            </div>
+        );
     }
 
     return (
-        <div className="min-h-screen bg-neo-cream">
-            {/* UI shortened for clarity of fix — your rest is unchanged */}
+        <div className="min-h-screen bg-neo-cream text-neo-ink">
+            <div className="grid lg:grid-cols-[280px_1fr_360px] gap-4 p-4">
 
-            <div className="space-y-5 p-4">
-                {/* RECENT TRANSACTIONS FIXED */}
-                <div className="neo-card bg-white p-5">
-                    <h3 className="text-xl font-black">
-                        Recent transactions
-                    </h3>
+                <aside className="bg-white border-4 border-neo-ink p-4 rounded-2xl">
+                    <button onClick={handleLogout} className="btn-primary w-full">
+                        Logout
+                    </button>
+                </aside>
 
-                    <div className="mt-4 space-y-3">
-                        {recentTransactions.map((tx) => (
-                            <div
-                                key={tx.id}
-                                className="flex items-center justify-between rounded-2xl border-3 border-neo-ink bg-neo-cream p-3"
-                            >
-                                <div>
-                                    <p className="font-black">{tx.label}</p>
-                                    <p className="text-xs text-neo-muted">
-                                        {tx.time}
-                                    </p>
-                                </div>
+                <main className="space-y-4">
+                    <div className="neo-card bg-white p-4">
+                        <h1 className="text-3xl font-black">
+                            Pay-per-use AI workspace
+                        </h1>
+                    </div>
 
-                                <p
-                                    className={`font-black ${
-                                        tx.amount < 0
-                                            ? 'text-red-600'
-                                            : 'text-green-700'
-                                    }`}
-                                >
-                                    {tx.amount < 0 ? '-' : '+'}
-                                    {formatAlgo(Math.abs(tx.amount))}
-                                </p>
+                    <div
+                        ref={chatContainerRef}
+                        className="neo-card bg-white p-4 min-h-[400px]"
+                    >
+                        {messages.map((msg, idx) => (
+                            <div key={idx} className="mb-2">
+                                <b>{msg.role}</b>: {msg.content}
                             </div>
                         ))}
+
+                        {chatLoading && <p>Processing...</p>}
                     </div>
-                </div>
 
-                {/* COST DEDUCTION FIXED */}
-                <div className="neo-card bg-neo-ink p-5 text-white">
-                    <p className="text-sm font-bold">Cost deduction</p>
+                    <form onSubmit={handleSend} className="flex gap-2">
+                        <input
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            className="flex-1 border p-2"
+                        />
+                        <button className="btn-primary">Send</button>
+                    </form>
+                </main>
 
-                    <p className="text-4xl font-black">
-                        {formatAlgo(liveUsage.previousBalance)} →{' '}
-                        {formatAlgo(liveUsage.nextBalance)}
-                    </p>
+                <aside className="bg-white border-4 border-neo-ink p-4 rounded-2xl">
+                    <h3 className="font-black mb-2">Recent transactions</h3>
 
-                    <div className="mt-3 rounded-2xl bg-neo-pink p-2 font-black text-black">
-                        -{formatAlgo(liveUsage.cost)} ALGO
+                    {recentTransactions.map((tx) => (
+                        <div key={tx.id} className="flex justify-between py-2">
+                            <div>
+                                <p className="font-bold">{tx.label}</p>
+                                <p className="text-xs">{tx.time}</p>
+                            </div>
+                            <p>{formatAlgo(tx.amount)}</p>
+                        </div>
+                    ))}
+
+                    <div className="mt-4">
+                        <p className="font-black">Cost preview</p>
+                        <p>
+                            {formatAlgo(liveUsage.previousBalance)} →{' '}
+                            {formatAlgo(liveUsage.nextBalance)}
+                        </p>
                     </div>
-                </div>
+                </aside>
+
             </div>
         </div>
     );

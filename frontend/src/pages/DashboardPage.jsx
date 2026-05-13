@@ -384,8 +384,8 @@ const DashboardPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen overflow-x-hidden bg-neo-cream p-3 text-neo-ink sm:p-6">
-                <div className="mx-auto grid w-full max-w-7xl gap-5 lg:grid-cols-[260px_1fr_340px]">
+<div className="min-h-screen overflow-x-hidden bg-neo-cream p-3 text-neo-ink sm:p-6">
+    <div className="mx-auto grid w-full max-w-7xl gap-5 lg:grid-cols-[260px_1fr_340px]">
                     {[0, 1, 2].map((item) => <div key={item} className="neo-card h-80 animate-pulse bg-white/70" />)}
                 </div>
             </div>
@@ -393,11 +393,21 @@ const DashboardPage = () => {
     }
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-neo-cream text-neo-ink">
-            {isSidebarOpen && <button aria-label="Close menu" className="fixed inset-0 z-40 bg-neo-ink/50 lg:hidden" onClick={() => setIsSidebarOpen(false)} />}
+<div className="min-h-screen overflow-x-hidden bg-neo-cream text-neo-ink">
+    {isSidebarOpen && (
+        <button
+            aria-label="Close menu"
+            className="fixed inset-0 z-40 bg-neo-ink/50 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+        />
+    )}
 
-            <div className="mx-auto grid min-h-screen w-full max-w-[1500px] gap-4 px-3 py-4 sm:gap-5 sm:px-4 sm:py-5 lg:grid-cols-[280px_minmax(0,1fr)_360px] lg:px-6">
-                <aside className={`fixed inset-y-0 left-0 z-50 w-[min(88vw,285px)] overflow-y-auto border-r-4 border-neo-ink bg-white p-3 shadow-brutal transition-transform duration-300 sm:p-4 lg:sticky lg:top-5 lg:h-[calc(100vh-2.5rem)] lg:w-auto lg:translate-x-0 lg:rounded-[1.35rem] lg:border-4 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-[115%]'}`}>
+    <div className="mx-auto grid min-h-screen w-full max-w-[1500px] gap-4 px-3 py-4 sm:gap-5 sm:px-4 sm:py-5 lg:grid-cols-[280px_minmax(0,1fr)_360px] lg:px-6">
+        <aside
+            className={`fixed inset-y-0 left-0 z-50 w-[min(88vw,285px)] overflow-y-auto border-r-4 border-neo-ink bg-white p-3 shadow-brutal transition-transform duration-300 sm:p-4 lg:sticky lg:top-5 lg:h-[calc(100vh-2.5rem)] lg:w-auto lg:translate-x-0 lg:rounded-[1.35rem] lg:border-4 ${
+                isSidebarOpen ? 'translate-x-0' : '-translate-x-[115%]'
+            }`}
+        >
                     <button onClick={() => setIsProfileOpen(true)} className="neo-card w-full bg-neo-yellow p-4 text-left transition-transform hover:-translate-y-1">
                         <div className="flex items-center gap-3">
                             <div className="grid h-12 w-12 place-items-center rounded-2xl border-4 border-neo-ink bg-neo-pink text-xl font-black shadow-brutal-sm">
@@ -427,7 +437,7 @@ const DashboardPage = () => {
                                     className={`w-full rounded-2xl border-4 border-neo-ink p-4 text-left font-bold transition-all hover:-translate-y-1 ${activeService?.id === service.id ? 'bg-neo-blue text-white shadow-brutal-sm' : 'bg-white hover:bg-neo-green'}`}
                                 >
                                     <div className="flex items-center justify-between gap-3">
-                                        <span className="min-w-0 truncate">{service.name}</span>
+<span className="min-w-0 truncate">{service.name}</span>
                                         <span className="rounded-full border-3 border-neo-ink bg-neo-yellow px-2 py-1 text-[10px] font-black text-neo-ink">{formatAlgo(service.price_algo)} ALGO</span>
                                     </div>
                                     <p className={`mt-2 line-clamp-2 text-xs ${activeService?.id === service.id ? 'text-white/80' : 'text-neo-muted'}`}>{service.description || 'Fast AI micro-service with per-request settlement.'}</p>
@@ -459,14 +469,28 @@ const DashboardPage = () => {
                     <header className="neo-card bg-white p-4 md:p-6">
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                             <div className="flex items-start gap-3">
-                                <button onClick={() => setIsSidebarOpen(true)} className="shrink-0 rounded-2xl border-4 border-neo-ink bg-neo-yellow p-3 font-black lg:hidden">☰</button>
-                                <div className="min-w-0">
-                                    <span className="section-tag">Live SaaS dashboard</span>
-                                    <h1 className="mt-4 text-3xl font-black tracking-[-0.05em] sm:text-4xl md:text-6xl">Pay-per-use AI workspace</h1>
-                                    <p className="mt-2 max-w-2xl font-bold leading-7 text-neo-muted">Send prompts, watch token usage, see the wallet deduction, and review billing history in one judge-ready flow.</p>
-                                </div>
-                            </div>
-                            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[520px] xl:grid-cols-4">
+<button
+    onClick={() => setIsSidebarOpen(true)}
+    className="shrink-0 rounded-2xl border-4 border-neo-ink bg-neo-yellow p-3 font-black lg:hidden"
+>
+    ☰
+</button>
+
+<div className="min-w-0">
+    <span className="section-tag">Live SaaS dashboard</span>
+
+    <h1 className="mt-4 text-3xl font-black tracking-[-0.05em] sm:text-4xl md:text-6xl">
+        Pay-per-use AI workspace
+    </h1>
+
+    <p className="mt-2 max-w-2xl font-bold leading-7 text-neo-muted">
+        Send prompts, watch token usage, see the wallet deduction,
+        and review billing history in one judge-ready flow.
+    </p>
+</div>
+</div>
+
+<div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[520px] xl:grid-cols-4">
                                 <div className="rounded-2xl border-4 border-neo-ink bg-neo-green p-3 shadow-brutal-sm">
                                     <p className="text-xs font-black uppercase">Wallet</p>
                                     <p className="text-2xl font-black">{formatAlgo(visualBalance)}</p>
@@ -491,8 +515,8 @@ const DashboardPage = () => {
                         </div>
                     </header>
 
-                    <section className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-                        <div className="neo-card flex min-h-[560px] min-w-0 flex-col bg-white sm:min-h-[620px]">
+<section className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="neo-card flex min-h-[560px] min-w-0 flex-col bg-white sm:min-h-[620px]">
                             <div className="flex flex-col gap-3 border-b-4 border-neo-ink p-4 md:flex-row md:items-center md:justify-between">
                                 <div>
                                     <p className="text-xs font-black uppercase tracking-[0.2em] text-neo-muted">AI usage page</p>
@@ -509,7 +533,9 @@ const DashboardPage = () => {
                                     <div className="grid h-full place-items-center py-8">
                                         <div className="max-w-2xl text-center">
                                             <div className="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-[1.35rem] border-4 border-neo-ink bg-neo-yellow text-4xl shadow-brutal animate-wiggle">🧠</div>
-                                            <h3 className="text-3xl font-black tracking-[-0.04em] sm:text-4xl">Start the full pay-per-use demo.</h3>
+<<h3 className="text-3xl font-black tracking-[-0.04em] sm:text-4xl">
+    Start the full pay-per-use demo.
+</h3>
                                             <p className="mt-3 font-bold leading-7 text-neo-muted">Pick a prompt below, send it, and the token meter + cost + wallet balance will update instantly.</p>
                                             <div className="mt-6 grid gap-3 md:grid-cols-2">
                                                 {quickPrompts.map((prompt) => (
@@ -522,7 +548,11 @@ const DashboardPage = () => {
                                     <div className="space-y-5">
                                         {messages.map((msg, idx) => (
                                             <div key={`${msg.role}-${idx}`} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[94%] overflow-hidden break-words rounded-[1.35rem] border-4 border-neo-ink p-3 shadow-brutal-sm sm:max-w-[88%] sm:p-4 ${msg.role === 'user' ? 'bg-neo-blue text-white' : 'bg-white'}`}>
+<div
+    className={`max-w-[94%] overflow-hidden break-words rounded-[1.35rem] border-4 border-neo-ink p-3 shadow-brutal-sm sm:max-w-[88%] sm:p-4 ${
+        msg.role === 'user' ? 'bg-neo-blue text-white' : 'bg-white'
+    }`}
+>
                                                     <div className="mb-2 flex items-center justify-between gap-3 border-b-3 border-neo-ink pb-2">
                                                         <span className="font-black">{msg.role === 'user' ? 'You' : activeService?.name || 'AI'}</span>
                                                         {msg.role === 'assistant' && <button onClick={() => handleCopy(msg.content)} className="rounded-full border-2 border-neo-ink bg-neo-yellow px-2 py-1 text-xs font-black text-neo-ink">Copy</button>}
@@ -554,7 +584,7 @@ const DashboardPage = () => {
                                     />
                                     <button type="submit" disabled={!input.trim() || chatLoading} className="btn-secondary disabled:cursor-not-allowed disabled:opacity-50">Send prompt →</button>
                                 </div>
-                                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                     <div className="rounded-2xl border-3 border-neo-ink bg-white p-3">
                                         <p className="text-xs font-black uppercase">Tokens used</p>
                                         <p className="text-2xl font-black">{liveUsage.tokens}</p>
@@ -578,10 +608,17 @@ const DashboardPage = () => {
                         <div className="space-y-5">
                             <div className="neo-card bg-neo-ink p-5 text-white">
                                 <p className="text-xs font-black uppercase tracking-[0.2em] text-neo-green">Cost deduction</p>
-                                <div className="mt-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end">
-                                    <div>
-                                        <p className="text-sm font-bold text-white/60">{formatAlgo(liveUsage.previousBalance)} →</p>
-                                        <p className="text-4xl font-black tracking-[-0.05em] sm:text-5xl">{formatAlgo(liveUsage.nextBalance)}</p>
+<div className="mt-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end">
+    <div>
+        <p className="text-sm font-bold text-white/60">
+            {formatAlgo(liveUsage.previousBalance)} →
+        </p>
+
+        <p className="text-4xl font-black tracking-[-0.05em] sm:text-5xl">
+            {formatAlgo(liveUsage.nextBalance)}
+        </p>
+    </div>
+</div>
                                         <p className="font-bold text-white/70">ALGO remaining</p>
                                     </div>
                                     <div className="rounded-2xl border-3 border-white bg-neo-pink px-3 py-2 text-sm font-black text-neo-ink">-{formatAlgo(liveUsage.cost)}</div>
@@ -592,12 +629,24 @@ const DashboardPage = () => {
                                 <h3 className="text-xl font-black">Recent transactions</h3>
                                 <div className="mt-4 space-y-3">
                                     {recentTransactions.map((tx) => (
-                                        <div key={tx.id} className="flex items-center justify-between gap-3 rounded-2xl border-3 border-neo-ink bg-neo-cream p-3">
-                                            <div className="min-w-0">
-                                                <p className="truncate font-black">{tx.label}</p>
-                                                <p className="text-xs font-bold text-neo-muted">{tx.time}</p>
-                                            </div>
-                                            <p className={`shrink-0 font-black ${tx.amount < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{tx.amount < 0 ? '-' : '+'}{formatAlgo(Math.abs(tx.amount))}</p>
+<div
+    key={tx.id}
+    className="flex items-center justify-between gap-3 rounded-2xl border-3 border-neo-ink bg-neo-cream p-3"
+>
+    <div className="min-w-0">
+        <p className="truncate font-black">{tx.label}</p>
+        <p className="text-xs font-bold text-neo-muted">{tx.time}</p>
+    </div>
+
+    <p
+        className={`shrink-0 font-black ${
+            tx.amount < 0 ? 'text-red-600' : 'text-emerald-700'
+        }`}
+    >
+        {tx.amount < 0 ? '-' : '+'}
+        {formatAlgo(Math.abs(tx.amount))}
+    </p>
+</div>
                                         </div>
                                     ))}
                                 </div>
@@ -606,11 +655,15 @@ const DashboardPage = () => {
                     </section>
                 </main>
 
-                <aside className="min-w-0 space-y-4 sm:space-y-5 lg:sticky lg:top-5 lg:h-[calc(100vh-2.5rem)] lg:overflow-y-auto lg:pr-1">
-                    <div className="neo-card bg-white p-5">
-                        <p className="text-xs font-black uppercase tracking-[0.2em] text-neo-muted">Daily usage graph</p>
-                        <h3 className="mt-2 text-2xl font-black">Tokens by day</h3>
-                        <div className="mt-5 flex h-52 items-end gap-1.5 border-b-4 border-l-4 border-neo-ink p-2 sm:gap-3 sm:p-3">
+<aside className="min-w-0 space-y-4 sm:space-y-5 lg:sticky lg:top-5 lg:h-[calc(100vh-2.5rem)] lg:overflow-y-auto lg:pr-1">
+    <div className="neo-card bg-white p-5">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-neo-muted">
+            Daily usage graph
+        </p>
+
+        <h3 className="mt-2 text-2xl font-black">Tokens by day</h3>
+
+        <div className="mt-5 flex h-52 items-end gap-1.5 border-b-4 border-l-4 border-neo-ink p-2 sm:gap-3 sm:p-3">
                             {demoUsage.map((day) => (
                                 <div key={day.day} className="flex flex-1 flex-col items-center gap-2">
                                     <div className="w-full rounded-t-xl border-3 border-neo-ink bg-neo-blue shadow-brutal-sm transition-all hover:bg-neo-pink" style={{ height: `${Math.max(22, (day.tokens / maxTokens) * 160)}px` }} title={`${day.tokens} tokens`} />
@@ -661,30 +714,55 @@ const DashboardPage = () => {
             </div>
 
             {isProfileOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-neo-ink/60 p-3 backdrop-blur-sm sm:p-4">
-                    <div className="neo-card w-full max-w-[calc(100vw-2rem)] bg-white p-4 sm:max-w-md sm:p-6">
-                        <button onClick={() => setIsProfileOpen(false)} className="float-right rounded-full border-3 border-neo-ink bg-neo-pink px-3 py-1 font-black">×</button>
-                        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center">
-                            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl border-4 border-neo-ink bg-neo-yellow text-3xl font-black shadow-brutal-sm">{user?.name?.charAt(0).toUpperCase() || 'U'}</div>
+<div className="fixed inset-0 z-[100] flex items-center justify-center bg-neo-ink/60 p-4 backdrop-blur-sm">
+  <div className="neo-card max-w-md bg-white p-6">
+    <button
+      onClick={() => setIsProfileOpen(false)}
+      className="float-right rounded-full border-3 border-neo-ink bg-neo-pink px-3 py-1 font-black"
+    >
+      ×
+    </button>
+
+    <div className="mt-2 flex items-center gap-4">
+      <div className="grid h-20 w-20 place-items-center rounded-2xl border-4 border-neo-ink bg-neo-yellow text-3xl font-black shadow-brutal-sm">
+        {user?.name?.charAt(0).toUpperCase() || "U"}
+      </div>
                             <div>
                                 <h2 className="text-2xl font-black">{user?.name}</h2>
                                 <p className="break-all text-xs font-bold text-neo-muted">{walletAddress}</p>
                             </div>
                         </div>
-                        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div className="rounded-2xl border-3 border-neo-ink bg-neo-green p-3"><p className="text-xs font-black uppercase">Spent 30d</p><p className="text-xl font-black">{formatAlgo(totalSpent)} ALGO</p></div>
-                            <div className="rounded-2xl border-3 border-neo-ink bg-neo-yellow p-3"><p className="text-xs font-black uppercase">Avg/session</p><p className="text-xl font-black">{formatAlgo(averageSession)}</p></div>
-                            <div className="rounded-2xl border-3 border-neo-ink bg-neo-cream p-3 sm:col-span-2"><p className="text-xs font-black uppercase">Email</p><p className="break-all font-bold">{user?.email || 'Not provided'}</p></div>
+<div className="mt-6 grid grid-cols-2 gap-3">
+  <div className="rounded-2xl border-3 border-neo-ink bg-neo-green p-3">
+    <p className="text-xs font-black uppercase">Spent 30d</p>
+    <p className="text-xl font-black">{formatAlgo(totalSpent)} ALGO</p>
+  </div>
+
+  <div className="rounded-2xl border-3 border-neo-ink bg-neo-yellow p-3">
+    <p className="text-xs font-black uppercase">Avg/session</p>
+    <p className="text-xl font-black">{formatAlgo(averageSession)}</p>
+  </div>
+
+  <div className="col-span-2 rounded-2xl border-3 border-neo-ink bg-neo-cream p-3">
+    <p className="text-xs font-black uppercase">Email</p>
+    <p className="font-bold">{user?.email || "Not provided"}</p>
+  </div>
+</div>
                         </div>
                     </div>
                 </div>
             )}
 
             {isAuthModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-neo-ink/60 p-3 backdrop-blur-sm sm:p-4">
-                    <div className="neo-card w-full max-w-[calc(100vw-2rem)] bg-white p-5 text-center sm:max-w-md sm:p-7">
-                        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border-4 border-neo-ink bg-neo-yellow text-3xl shadow-brutal-sm">⚡</div>
-                        <h2 className="mt-5 text-2xl font-black sm:text-3xl">Authorize AI session</h2>
+<div className="fixed inset-0 z-[100] flex items-center justify-center bg-neo-ink/60 p-4 backdrop-blur-sm">
+  <div className="neo-card max-w-md bg-white p-7 text-center">
+    <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border-4 border-neo-ink bg-neo-yellow text-3xl shadow-brutal-sm">
+      ⚡
+    </div>
+
+    <h2 className="mt-5 text-3xl font-black">
+      Authorize AI session
+    </h2>
                         <p className="mt-3 font-bold leading-7 text-neo-muted">Add a 5.0 ALGO session allowance. The UI will only deduct the actual prompt cost as you use AI.</p>
                         <div className="mt-6 grid gap-3">
                             <button onClick={handleAuthorizeSession} disabled={isDepositing} className="btn-primary disabled:opacity-50">{isDepositing ? 'Awaiting signature...' : 'Sign with Pera Wallet'}</button>
@@ -695,12 +773,21 @@ const DashboardPage = () => {
             )}
 
             {isDeleteModalOpen && (
-                <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-neo-ink/60 p-3 backdrop-blur-sm sm:p-4">
-                    <div className="neo-card w-full max-w-[calc(100vw-2rem)] bg-white p-5 text-center sm:max-w-sm sm:p-7">
-                        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border-4 border-neo-ink bg-neo-pink text-3xl shadow-brutal-sm">🗑️</div>
-                        <h3 className="mt-5 text-2xl font-black">Delete conversation?</h3>
-                        <p className="mt-2 font-bold text-neo-muted">This removes the selected usage history item from your dashboard.</p>
-                        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+<div className="fixed inset-0 z-[120] flex items-center justify-center bg-neo-ink/60 p-4 backdrop-blur-sm">
+  <div className="neo-card max-w-sm bg-white p-7 text-center">
+    <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border-4 border-neo-ink bg-neo-pink text-3xl shadow-brutal-sm">
+      🗑️
+    </div>
+
+    <h3 className="mt-5 text-2xl font-black">
+      Delete conversation?
+    </h3>
+
+    <p className="mt-2 font-bold text-neo-muted">
+      This removes the selected usage history item from your dashboard.
+    </p>
+
+    <div className="mt-6 grid grid-cols-2 gap-3">
                             <button onClick={() => setIsDeleteModalOpen(false)} className="btn-secondary !px-4">Cancel</button>
                             <button onClick={confirmDelete} className="btn-primary !bg-neo-pink !px-4">Delete</button>
                         </div>
@@ -709,7 +796,11 @@ const DashboardPage = () => {
             )}
 
             {toast && (
-                <div className={`fixed inset-x-3 bottom-4 z-[300] rounded-2xl border-4 border-neo-ink px-4 py-3 font-black shadow-brutal animate-slide-up sm:inset-x-auto sm:right-6 sm:bottom-6 sm:px-5 sm:py-4 ${toast.type === 'error' ? 'bg-neo-pink' : 'bg-neo-green'}`}>
+<div
+  className={`fixed bottom-6 right-6 z-[300] rounded-2xl border-4 border-neo-ink px-5 py-4 font-black shadow-brutal animate-slide-up ${
+    toast.type === "error" ? "bg-neo-pink" : "bg-neo-green"
+  }`}
+>
                     {toast.type === 'error' ? '⚠️ ' : '✓ '}{toast.message}
                 </div>
             )}

@@ -152,7 +152,7 @@ const Navbar = () => {
         <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-4">
             <div className="max-w-6xl mx-auto floating-nav rounded-2xl px-6 py-3 flex items-center justify-between">
                 <Link to="/" className="flex items-center gap-2 group">
-                    <span className="text-xl font-serif font-bold text-white group-hover:text-brand-light transition-colors">
+                    <span className="text-xl font-black tracking-[-0.04em] text-neo-ink transition-colors group-hover:text-neo-blue">
                         PayPerAI
                     </span>
                 </Link>
@@ -163,13 +163,13 @@ const Navbar = () => {
                         link.isRoute ? (
                             <Link key={link.label} to={link.to}
                                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                className="text-sm text-gray-400 hover:text-white transition-colors">
+                                className="text-sm font-black text-neo-muted transition-colors hover:text-neo-ink">
                                 {link.label}
                             </Link>
                         ) : (
                             <a key={link.label} href={link.to}
                                 onClick={(e) => scrollToSection(e, link.to.replace('/', ''))}
-                                className="text-sm text-gray-400 hover:text-white transition-colors">
+                                className="text-sm font-black text-neo-muted transition-colors hover:text-neo-ink">
                                 {link.label}
                             </a>
                         )
@@ -181,7 +181,7 @@ const Navbar = () => {
                 </div>
 
                 {/* Mobile toggle */}
-                <button onClick={() => setIsOpen(o => !o)} className="md:hidden text-white p-2">
+                <button onClick={() => setIsOpen(o => !o)} className="md:hidden text-neo-ink p-2">
                     {isOpen
                         ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -195,14 +195,14 @@ const Navbar = () => {
                     {navLinks.map(link =>
                         link.isRoute ? (
                             <Link key={link.label} to={link.to}
-                                className="block text-gray-400 hover:text-white transition-colors"
+                                className="block font-black text-neo-muted transition-colors hover:text-neo-ink"
                                 onClick={() => { setIsOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                                 {link.label}
                             </Link>
                         ) : (
                             <a key={link.label} href={link.to}
                                 onClick={(e) => scrollToSection(e, link.to.replace('/', ''))}
-                                className="block text-gray-400 hover:text-white transition-colors">
+                                className="block font-black text-neo-muted transition-colors hover:text-neo-ink">
                                 {link.label}
                             </a>
                         )

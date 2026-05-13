@@ -19,6 +19,7 @@ from app.config import settings
 from app.database import init_db
 from app.routes import services, payment, query, chat, wallet, image, marketplace, users
 from app.routes.auth import router as auth_router
+from app.routes.session import router as session_router
 from app.core.limiter import limiter
 
 
@@ -92,6 +93,7 @@ app.include_router(wallet.router, prefix="/api/v1")
 app.include_router(image.router, prefix="/api/v1")
 app.include_router(marketplace.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
+app.include_router(session_router, prefix="/api/v1")
 
 # ── Static Files ─────────────────────────────────────────────
 os.makedirs("static/nfts", exist_ok=True)

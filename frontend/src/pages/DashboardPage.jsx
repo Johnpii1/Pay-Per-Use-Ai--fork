@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     deleteConversation,
@@ -11,26 +11,10 @@ import {
     getUserProfile,
     getWalletPrepayBalance,
     sendChat,
+    streamChat,
+    getSessionStatus,
 } from '../api/client';
 import { useSiwa } from '../hooks/useSiwa';
-
-const demoUsage = [
-    { day: 'Mon', tokens: 1800, cost: 0.42 },
-    { day: 'Tue', tokens: 2600, cost: 0.58 },
-    { day: 'Wed', tokens: 1400, cost: 0.31 },
-    { day: 'Thu', tokens: 3200, cost: 0.76 },
-    { day: 'Fri', tokens: 2400, cost: 0.55 },
-    { day: 'Sat', tokens: 4100, cost: 0.93 },
-    { day: 'Sun', tokens: 2900, cost: 0.62 },
-];
-
-const formatAlgo = (value) => Number(value || 0).toFixed(3);
-
-const estimateTokens = (text) =>
-    Math.max(
-        18,
-        Math.ceil((text || '').trim().split(/\s+/).filter(Boolean).length * 1.45)
-    );
 
 const DashboardPage = () => {
     const navigate = useNavigate();
@@ -47,10 +31,21 @@ const DashboardPage = () => {
     const [chatLoading, setChatLoading] = useState(false);
     const [activeConversationId, setActiveConversationId] = useState(null);
     const [balance, setBalance] = useState(0);
-    const [visualBalance, setVisualBalance] = useState(0);
-    const [stats, setStats] = useState(null);
+
+    const [sessionExpiry, setSessionExpiry] = useState(null);
+    const [sessionStatus, setSessionStatus] = useState('none');
+    const [sessionCountdown, setSessionCountdown] = useState('');
+
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [pendingPrompt, setPendingPrompt] = useState('');
+    const [isDepositing, setIsDepositing] = useState(false);
+
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [conversationToDelete, setConversationToDelete] = useState(null);
 
     const chatContainerRef = useRef(null);
+
+    const showToast = (msg) => alert(msg);
 
     useEffect(() => {
         if (!walletAddress) {
@@ -58,39 +53,38 @@ const DashboardPage = () => {
             return;
         }
 
-        const initDashboard = async () => {
+        const init = async () => {
             try {
                 const profile = await getUserProfile(walletAddress);
                 setUser(profile);
 
                 const srvs = await getServices();
                 setServices(srvs);
-                if (srvs.length > 0) setActiveService(srvs[0]);
+                if (srvs.length) setActiveService(srvs[0]);
 
                 const hist = await getConversationHistory(walletAddress);
                 setHistory(hist);
 
                 const bal = await getWalletPrepayBalance(walletAddress);
                 setBalance(bal.balance_algo);
-                setVisualBalance(bal.balance_algo);
 
-                try {
-                    const analytics = await getUserAnalytics(walletAddress);
-                    setStats(analytics);
-                } catch (_) {}
+                const sess = await getSessionStatus(walletAddress);
+                setSessionExpiry(sess.expiry_timestamp);
+
+                if (!sess.has_session) setSessionStatus('none');
+                else if (sess.is_expired) setSessionStatus('expired');
+                else setSessionStatus('active');
+
+                const analytics = await getUserAnalytics(walletAddress);
             } catch (err) {
                 console.error(err);
-                if (err.message === 'User not found') navigate('/onboarding');
-                else {
-                    sessionStorage.clear();
-                    navigate('/');
-                }
+                navigate('/');
             } finally {
                 setLoading(false);
             }
         };
 
-        initDashboard();
+        init();
     }, [walletAddress, navigate]);
 
     useEffect(() => {
@@ -100,57 +94,86 @@ const DashboardPage = () => {
         }
     }, [messages, chatLoading]);
 
-    const [liveUsage, setLiveUsage] = useState({
-        tokens: 0,
-        cost: 0,
-        previousBalance: 0,
-        nextBalance: 0,
-    });
-
     useEffect(() => {
-        const tokens = estimateTokens(input);
-        const unitPrice = Number(activeService?.price_algo || 0.003);
+        if (sessionStatus !== 'active' || !sessionExpiry) return;
 
-        const cost = input.trim()
-            ? Math.max(0.001, tokens * unitPrice * 0.008)
-            : 0;
+        const tick = () => {
+            const secs = Math.max(0, sessionExpiry - Math.floor(Date.now() / 1000));
 
-        setLiveUsage({
-            tokens: input.trim() ? tokens : 0,
-            cost,
-            previousBalance: visualBalance,
-            nextBalance: Math.max(0, visualBalance - cost),
-        });
-    }, [input, activeService, visualBalance]);
+            if (secs === 0) {
+                setSessionStatus('expired');
+                setSessionCountdown('');
+                return;
+            }
 
-    const totalTokens =
-        stats?.tokens_used_30d ||
-        demoUsage.reduce((sum, d) => sum + d.tokens, 0);
+            const m = Math.floor(secs / 60);
+            const s = secs % 60;
 
-    const totalSpent =
-        stats?.spent_algo_30d ||
-        demoUsage.reduce((sum, d) => sum + d.cost, 0);
+            setSessionCountdown(`${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+        };
 
-    const recentTransactions = useMemo(() => {
-        const historyRows = history.slice(0, 4).map((item, index) => ({
-            id: item.conversation_id || index,
-            label: `${item.service_id || 'AI'} session`,
-            amount: -(0.05 + index * 0.011),
-            time: index === 0 ? 'Just now' : `${index + 1}h ago`,
-            type: 'usage',
-        }));
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [sessionStatus, sessionExpiry]);
 
-        return [
-            ...historyRows,
-            {
-                id: 'wallet-topup',
-                label: 'Wallet top-up',
-                amount: 5,
-                time: 'Today',
-                type: 'deposit',
-            },
-        ].slice(0, 5);
-    }, [history]);
+    const executeSend = async (text) => {
+        setMessages(prev => [...prev, { role: 'user', content: text }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+        setChatLoading(true);
+
+        try {
+            const res = await streamChat(
+                activeService.id,
+                walletAddress,
+                text,
+                activeConversationId
+            );
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+
+                    const data = JSON.parse(line.slice(6));
+
+                    if (data.chunk) {
+                        setMessages(prev => {
+                            const copy = [...prev];
+                            copy[copy.length - 1].content += data.chunk;
+                            return copy;
+                        });
+                    }
+
+                    if (data.done) {
+                        setActiveConversationId(data.conversation_id);
+                        setMessages(data.messages);
+
+                        const bal = await getWalletPrepayBalance(walletAddress);
+                        setBalance(bal.balance_algo);
+
+                        const hist = await getConversationHistory(walletAddress);
+                        setHistory(hist);
+                    }
+                }
+            }
+        } catch (err) {
+            setMessages(prev => [
+                ...prev.slice(0, -1),
+                { role: 'assistant', content: `Error: ${err.message}` }
+            ]);
+        } finally {
+            setChatLoading(false);
+        }
+    };
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -159,40 +182,82 @@ const DashboardPage = () => {
         const text = input;
         setInput('');
 
-        setMessages((prev) => [
-            ...prev,
-            { role: 'user', content: text },
-        ]);
+        if (balance < 0.5) {
+            setPendingPrompt(text);
+            setIsAuthModalOpen(true);
+            return;
+        }
 
-        setChatLoading(true);
+        await executeSend(text);
+    };
 
+    const handleAuthorizeSession = async () => {
         try {
-            const res = await sendChat(
-                activeService.id,
-                walletAddress,
-                text,
-                activeConversationId
-            );
+            setIsDepositing(true);
 
-            setActiveConversationId(res.conversation_id);
-            setMessages(res.messages);
+            const { PeraWalletConnect } = await import('@perawallet/connect');
+            const algosdk = (await import('algosdk')).default;
+
+            const pw = new PeraWalletConnect();
+            let accounts = await pw.connect();
+
+            if (accounts[0] !== walletAddress) throw new Error('Wallet mismatch');
+
+            const paymentInfo = await getPaymentInfo(activeService.id);
+            const algod = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud', '');
+            const params = await algod.getTransactionParams().do();
+
+            const expiry = Math.floor(Date.now() / 1000) + 86400;
+
+            const atc = new algosdk.AtomicTransactionComposer();
+
+            const method = new algosdk.ABIMethod({
+                name: 'start_session',
+                args: [
+                    { type: 'uint64', name: 'max_spend' },
+                    { type: 'uint64', name: 'expiry_time' }
+                ],
+                returns: { type: 'bool' }
+            });
+
+            atc.addMethodCall({
+                appID: parseInt(paymentInfo.app_id),
+                method,
+                methodArgs: [5000000, expiry],
+                sender: walletAddress,
+                suggestedParams: params,
+            });
+
+            const result = await atc.execute(algod, 4);
+
+            await depositWalletFunds(walletAddress, result.txIDs[0]);
 
             const bal = await getWalletPrepayBalance(walletAddress);
             setBalance(bal.balance_algo);
-            setVisualBalance(bal.balance_algo);
 
-            const hist = await getConversationHistory(walletAddress);
-            setHistory(hist);
+            setSessionStatus('active');
+            setSessionExpiry(expiry);
+            setIsAuthModalOpen(false);
 
-            const analytics = await getUserAnalytics(walletAddress);
-            setStats(analytics);
+            if (pendingPrompt) {
+                await executeSend(pendingPrompt);
+                setPendingPrompt('');
+            }
         } catch (err) {
-            setMessages((prev) => [
-                ...prev,
-                { role: 'assistant', content: `Error: ${err.message}` },
-            ]);
+            console.error(err);
+            alert(err.message);
         } finally {
-            setChatLoading(false);
+            setIsDepositing(false);
+        }
+    };
+
+    const confirmDelete = async () => {
+        try {
+            await deleteConversation(conversationToDelete);
+            setHistory(prev => prev.filter(h => h.conversation_id !== conversationToDelete));
+            setIsDeleteModalOpen(false);
+        } catch (err) {
+            alert('Delete failed');
         }
     };
 
@@ -202,76 +267,67 @@ const DashboardPage = () => {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-neo-cream p-6">
-                <div className="animate-pulse">Loading...</div>
-            </div>
-        );
+        return <div className="p-6">Loading...</div>;
     }
 
     return (
-        <div className="min-h-screen bg-neo-cream text-neo-ink">
-            <div className="grid lg:grid-cols-[280px_1fr_360px] gap-4 p-4">
+        <div className="min-h-screen bg-black text-white">
+            <header className="p-4 flex justify-between border-b border-white/10">
+                <h1 className="font-bold">AI Dashboard</h1>
+                <button onClick={handleLogout}>Logout</button>
+            </header>
 
-                <aside className="bg-white border-4 border-neo-ink p-4 rounded-2xl">
-                    <button onClick={handleLogout} className="btn-primary w-full">
-                        Logout
-                    </button>
-                </aside>
+            <div className="grid grid-cols-3 gap-4 p-4">
+                <aside />
 
-                <main className="space-y-4">
-                    <div className="neo-card bg-white p-4">
-                        <h1 className="text-3xl font-black">
-                            Pay-per-use AI workspace
-                        </h1>
-                    </div>
-
+                <main>
                     <div
                         ref={chatContainerRef}
-                        className="neo-card bg-white p-4 min-h-[400px]"
+                        className="h-[500px] overflow-y-auto border border-white/10 p-3"
                     >
-                        {messages.map((msg, idx) => (
-                            <div key={idx} className="mb-2">
-                                <b>{msg.role}</b>: {msg.content}
+                        {messages.map((m, i) => (
+                            <div key={i}>
+                                <b>{m.role}:</b> {m.content}
                             </div>
                         ))}
-
-                        {chatLoading && <p>Processing...</p>}
                     </div>
 
-                    <form onSubmit={handleSend} className="flex gap-2">
+                    <form onSubmit={handleSend} className="flex gap-2 mt-3">
                         <input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            className="flex-1 border p-2"
+                            className="flex-1 p-2 text-black"
                         />
-                        <button className="btn-primary">Send</button>
+                        <button>Send</button>
                     </form>
                 </main>
 
-                <aside className="bg-white border-4 border-neo-ink p-4 rounded-2xl">
-                    <h3 className="font-black mb-2">Recent transactions</h3>
-
-                    {recentTransactions.map((tx) => (
-                        <div key={tx.id} className="flex justify-between py-2">
-                            <div>
-                                <p className="font-bold">{tx.label}</p>
-                                <p className="text-xs">{tx.time}</p>
-                            </div>
-                            <p>{formatAlgo(tx.amount)}</p>
-                        </div>
-                    ))}
-
-                    <div className="mt-4">
-                        <p className="font-black">Cost preview</p>
-                        <p>
-                            {formatAlgo(liveUsage.previousBalance)} →{' '}
-                            {formatAlgo(liveUsage.nextBalance)}
-                        </p>
-                    </div>
-                </aside>
-
+                <aside />
             </div>
+
+            {isAuthModalOpen && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
+                    <div className="bg-white text-black p-6 rounded">
+                        <p>Authorize session?</p>
+                        <button onClick={handleAuthorizeSession}>
+                            Continue
+                        </button>
+                        <button onClick={() => setIsAuthModalOpen(false)}>
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
+                    <div className="bg-white text-black p-6 rounded">
+                        <p>Delete conversation?</p>
+                        <button onClick={confirmDelete}>Yes</button>
+                        <button onClick={() => setIsDeleteModalOpen(false)}>No</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

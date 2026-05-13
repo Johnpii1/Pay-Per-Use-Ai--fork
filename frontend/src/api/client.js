@@ -74,6 +74,33 @@ export const getHealth = async () => {
 
 // ── New Chat API ──
 
+export const streamChat = async (serviceId, walletAddress, prompt, conversationId = null, txId = null) => {
+    const body = {
+        service_id: serviceId,
+        wallet_address: walletAddress,
+        prompt
+    };
+    if (conversationId) body.conversation_id = conversationId;
+    if (txId) body.tx_id = txId;
+
+    const res = await apiFetch(`${BASE_URL}/api/v1/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+    
+    if (!res.ok) {
+        let errMessage = "Unknown error occurred";
+        try {
+            const data = await res.json();
+            errMessage = data.detail || JSON.stringify(data);
+        } catch (_) { }
+        throw new Error(errMessage);
+    }
+    
+    return res;
+};
+
 export const sendChat = async (serviceId, walletAddress, prompt, conversationId = null, txId = null) => {
     const body = {
         service_id: serviceId,
@@ -168,6 +195,11 @@ export const deleteConversation = async (conversationId) => {
 
 export const getUserAnalytics = async (walletAddress) => {
     const res = await apiFetch(`${BASE_URL}/api/v1/users/${walletAddress}/analytics`);
+    return handleResponse(res);
+};
+
+export const getSessionStatus = async (walletAddress) => {
+    const res = await apiFetch(`${BASE_URL}/api/v1/session/${walletAddress}/status`);
     return handleResponse(res);
 };
 

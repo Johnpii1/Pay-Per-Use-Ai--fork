@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { sendChat, getPaymentInfo, getConversationHistory, getServices, getWalletPrepayBalance, depositWalletFunds, getConversationMessages, generateImage, mintNFT, transferNFT } from '../api/client';
+import { sendChat, streamChat, getPaymentInfo, getConversationHistory, getServices, getWalletPrepayBalance, depositWalletFunds, getConversationMessages, generateImage, mintNFT, transferNFT } from '../api/client';
 
 const ICONS = {
     code_review: '🔍', image_studio: '🎨', business_evaluator: '💡',
@@ -325,19 +325,57 @@ const WorkspacePage = () => {
                 // Set balance (fixed 2.0 ALGO deduction)
                 setBalance(prev => Math.max(0, prev - 2000000));
             } else {
-                const result = await sendChat(service.id, wallet, userPrompt, conversationId, null);
-                setConversationId(result.conversation_id);
-                setMessages(result.messages);
-                setTotalTokens(result.total_tokens_session);
-                setTotalCost(result.total_cost_session);
+                setMessages(prev => [...prev, { role: 'assistant', content: '', tokens_used: 0, cost_usd: 0 }]);
+                
+                const res = await streamChat(service.id, wallet, userPrompt, conversationId, null);
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let done = false;
+                
+                while (!done) {
+                    const { value, done: readerDone } = await reader.read();
+                    done = readerDone;
+                    if (value) {
+                        const chunkStr = decoder.decode(value, { stream: true });
+                        const lines = chunkStr.split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const dataStr = line.slice(6);
+                                try {
+                                    const data = JSON.parse(dataStr);
+                                    if (data.chunk) {
+                                        setMessages(prev => {
+                                            const newMsgs = [...prev];
+                                            const lastIdx = newMsgs.length - 1;
+                                            newMsgs[lastIdx] = {
+                                                ...newMsgs[lastIdx],
+                                                content: newMsgs[lastIdx].content + data.chunk
+                                            };
+                                            return newMsgs;
+                                        });
+                                    } else if (data.done) {
+                                        setConversationId(data.conversation_id);
+                                        setMessages(data.messages);
+                                        setTotalTokens(data.total_tokens_session);
+                                        setTotalCost(data.total_cost_session);
 
-                const algoPriceUsd = 0.20;
-                const sessionCostAlgo = result.total_cost_session / algoPriceUsd;
-                const sessionCostMicroAlgo = Math.round(sessionCostAlgo * 1_000_000);
+                                        const algoPriceUsd = 0.20;
+                                        const sessionCostAlgo = data.total_cost_session / algoPriceUsd;
+                                        const sessionCostMicroAlgo = Math.round(sessionCostAlgo * 1_000_000);
 
-                fetchBalance(wallet).then(realBalance => {
-                    setBalance(Math.max(0, realBalance - sessionCostMicroAlgo));
-                }).catch(() => { });
+                                        fetchBalance(wallet).then(realBalance => {
+                                            setBalance(Math.max(0, realBalance - sessionCostMicroAlgo));
+                                        }).catch(() => { });
+                                    } else if (data.error) {
+                                        setError(data.error);
+                                    }
+                                } catch (e) {
+                                    // Ignore incomplete chunks
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
         } catch (err) {
